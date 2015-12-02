@@ -1,137 +1,4 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
-/*
- (c) 2013, Vladimir Agafonkin
- Simplify.js, a high-performance JS polyline simplification library
- mourner.github.io/simplify-js
-*/
-
-(function () { 'use strict';
-
-// to suit your point format, run search/replace for '.x' and '.y';
-// for 3D version, see 3d branch (configurability would draw significant performance overhead)
-
-// square distance between 2 points
-function getSqDist(p1, p2) {
-
-    var dx = p1.x - p2.x,
-        dy = p1.y - p2.y;
-
-    return dx * dx + dy * dy;
-}
-
-// square distance from a point to a segment
-function getSqSegDist(p, p1, p2) {
-
-    var x = p1.x,
-        y = p1.y,
-        dx = p2.x - x,
-        dy = p2.y - y;
-
-    if (dx !== 0 || dy !== 0) {
-
-        var t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
-
-        if (t > 1) {
-            x = p2.x;
-            y = p2.y;
-
-        } else if (t > 0) {
-            x += dx * t;
-            y += dy * t;
-        }
-    }
-
-    dx = p.x - x;
-    dy = p.y - y;
-
-    return dx * dx + dy * dy;
-}
-// rest of the code doesn't care about point format
-
-// basic distance-based simplification
-function simplifyRadialDist(points, sqTolerance) {
-
-    var prevPoint = points[0],
-        newPoints = [prevPoint],
-        point;
-
-    for (var i = 1, len = points.length; i < len; i++) {
-        point = points[i];
-
-        if (getSqDist(point, prevPoint) > sqTolerance) {
-            newPoints.push(point);
-            prevPoint = point;
-        }
-    }
-
-    if (prevPoint !== point) newPoints.push(point);
-
-    return newPoints;
-}
-
-// simplification using optimized Douglas-Peucker algorithm with recursion elimination
-function simplifyDouglasPeucker(points, sqTolerance) {
-
-    var len = points.length,
-        MarkerArray = typeof Uint8Array !== 'undefined' ? Uint8Array : Array,
-        markers = new MarkerArray(len),
-        first = 0,
-        last = len - 1,
-        stack = [],
-        newPoints = [],
-        i, maxSqDist, sqDist, index;
-
-    markers[first] = markers[last] = 1;
-
-    while (last) {
-
-        maxSqDist = 0;
-
-        for (i = first + 1; i < last; i++) {
-            sqDist = getSqSegDist(points[i], points[first], points[last]);
-
-            if (sqDist > maxSqDist) {
-                index = i;
-                maxSqDist = sqDist;
-            }
-        }
-
-        if (maxSqDist > sqTolerance) {
-            markers[index] = 1;
-            stack.push(first, index, index, last);
-        }
-
-        last = stack.pop();
-        first = stack.pop();
-    }
-
-    for (i = 0; i < len; i++) {
-        if (markers[i]) newPoints.push(points[i]);
-    }
-
-    return newPoints;
-}
-
-// both algorithms combined for awesome performance
-function simplify(points, tolerance, highestQuality) {
-
-    var sqTolerance = tolerance !== undefined ? tolerance * tolerance : 1;
-
-    points = highestQuality ? points : simplifyRadialDist(points, sqTolerance);
-    points = simplifyDouglasPeucker(points, sqTolerance);
-
-    return points;
-}
-
-// export as AMD module / Node module / browser or worker variable
-if (typeof define === 'function' && define.amd) define(function() { return simplify; });
-else if (typeof module !== 'undefined') module.exports = simplify;
-else if (typeof self !== 'undefined') self.simplify = simplify;
-else window.simplify = simplify;
-
-})();
-
-},{}],2:[function(require,module,exports){
 var colorSort;
 
 colorSort = require("../color/sort.coffee");
@@ -174,7 +41,7 @@ module.exports = function(a, b, keys, sort, colors, vars, depth) {
 };
 
 
-},{"../color/sort.coffee":18}],3:[function(require,module,exports){
+},{"../color/sort.coffee":17}],2:[function(require,module,exports){
 module.exports = function(arr, value) {
   var constructor;
   if (arr instanceof Array) {
@@ -186,7 +53,7 @@ module.exports = function(arr, value) {
 };
 
 
-},{}],4:[function(require,module,exports){
+},{}],3:[function(require,module,exports){
 var comparator, fetchSort;
 
 comparator = require("./comparator.coffee");
@@ -224,7 +91,7 @@ module.exports = function(arr, keys, sort, colors, vars, depth) {
 };
 
 
-},{"../core/fetch/sort.coffee":24,"./comparator.coffee":2}],5:[function(require,module,exports){
+},{"../core/fetch/sort.coffee":23,"./comparator.coffee":1}],4:[function(require,module,exports){
 module.exports = function(arr, x) {
   if (x === void 0) {
     return arr;
@@ -247,7 +114,7 @@ module.exports = function(arr, x) {
 };
 
 
-},{}],6:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 var sheet;
 
 sheet = function(name) {
@@ -274,11 +141,11 @@ sheet.tested = {};
 module.exports = sheet;
 
 
-},{}],7:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 // Determines if the current browser is Internet Explorer.
 module.exports = /*@cc_on!@*/false
 
-},{}],8:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 var ie, touch;
 
 ie = require("./ie.js");
@@ -306,7 +173,7 @@ if (touch) {
 }
 
 
-},{"./ie.js":7,"./touch.coffee":12}],9:[function(require,module,exports){
+},{"./ie.js":6,"./touch.coffee":11}],8:[function(require,module,exports){
 var prefix;
 
 prefix = function() {
@@ -331,11 +198,11 @@ prefix = function() {
 module.exports = prefix;
 
 
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 module.exports = d3.select("html").attr("dir") === "rtl";
 
 
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 var scrollbar;
 
 scrollbar = function() {
@@ -370,11 +237,11 @@ scrollbar = function() {
 module.exports = scrollbar;
 
 
-},{}],12:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 module.exports = ("ontouchstart" in window) || window.DocumentTouch && document instanceof DocumentTouch ? true : false;
 
 
-},{}],13:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 module.exports = function(color) {
   var hsl;
   hsl = d3.hsl(color);
@@ -388,7 +255,7 @@ module.exports = function(color) {
 };
 
 
-},{}],14:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = function(color, increment) {
   var c;
   if (increment === void 0) {
@@ -402,7 +269,7 @@ module.exports = function(color, increment) {
 };
 
 
-},{}],15:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 module.exports = function(c1, c2, o1, o2) {
   var b, g, r;
   if (!o1) {
@@ -420,7 +287,7 @@ module.exports = function(c1, c2, o1, o2) {
 };
 
 
-},{}],16:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 var defaultScale;
 
 defaultScale = require("./scale.coffee");
@@ -433,11 +300,11 @@ module.exports = function(x, scale) {
 };
 
 
-},{"./scale.coffee":17}],17:[function(require,module,exports){
+},{"./scale.coffee":16}],16:[function(require,module,exports){
 module.exports = d3.scale.ordinal().range(["#b22200", "#EACE3F", "#282F6B", "#B35C1E", "#224F20", "#5F487C", "#759143", "#419391", "#993F88", "#e89c89", "#ffee8d", "#afd5e8", "#f7ba77", "#a5c697", "#c5b5e5", "#d1d392", "#bbefd0", "#e099cf"]);
 
 
-},{}],18:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 module.exports = function(a, b) {
   var aHSL, bHSL;
   aHSL = d3.hsl(a);
@@ -452,7 +319,7 @@ module.exports = function(a, b) {
 };
 
 
-},{}],19:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 module.exports = function(color) {
   var b, g, r, rgbColor, yiq;
   rgbColor = d3.rgb(color);
@@ -468,7 +335,7 @@ module.exports = function(color) {
 };
 
 
-},{}],20:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 module.exports = function(color) {
   var blackColors, testColor, userBlack;
   color = color + "";
@@ -486,7 +353,7 @@ module.exports = function(color) {
 };
 
 
-},{}],21:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var ie, print, wiki;
 
 ie = require("../../client/ie.js");
@@ -593,7 +460,7 @@ print.wiki = function(url) {
 module.exports = print;
 
 
-},{"../../client/ie.js":7,"./wiki.coffee":22}],22:[function(require,module,exports){
+},{"../../client/ie.js":6,"./wiki.coffee":21}],21:[function(require,module,exports){
 module.exports = {
   active: "Visualizations#active",
   aggs: "Visualizations#aggs",
@@ -657,7 +524,7 @@ module.exports = {
 };
 
 
-},{}],23:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 var fetchValue, getColor, getRandom, randomColor, uniques, validColor, validObject;
 
 fetchValue = require("./value.coffee");
@@ -738,7 +605,7 @@ getRandom = function(vars, c, level) {
 };
 
 
-},{"../../color/random.coffee":16,"../../color/validate.coffee":20,"../../object/validate.coffee":49,"../../util/uniques.coffee":84,"./value.coffee":26}],24:[function(require,module,exports){
+},{"../../color/random.coffee":15,"../../color/validate.coffee":19,"../../object/validate.coffee":45,"../../util/uniques.coffee":80,"./value.coffee":25}],23:[function(require,module,exports){
 var fetchColor, fetchText, fetchValue;
 
 fetchValue = require("./value.coffee");
@@ -782,7 +649,7 @@ module.exports = function(vars, d, keys, colors, depth) {
 };
 
 
-},{"./color.coffee":23,"./text.js":25,"./value.coffee":26}],25:[function(require,module,exports){
+},{"./color.coffee":22,"./text.js":24,"./value.coffee":25}],24:[function(require,module,exports){
 var fetchValue = require("./value.coffee"),
     validObject = require("../../object/validate.coffee"),
     uniques     = require("../../util/uniques.coffee");
@@ -864,7 +731,7 @@ module.exports = function(vars, obj, depth) {
 
 };
 
-},{"../../object/validate.coffee":49,"../../util/uniques.coffee":84,"./value.coffee":26}],26:[function(require,module,exports){
+},{"../../object/validate.coffee":45,"../../util/uniques.coffee":80,"./value.coffee":25}],25:[function(require,module,exports){
 var cacheInit, checkAttrs, checkData, fetch, fetchArray, filterArray, find, uniqueValues, validObject, valueParse;
 
 validObject = require("../../object/validate.coffee");
@@ -1082,7 +949,7 @@ fetch = function(vars, node, variable, depth) {
 module.exports = fetch;
 
 
-},{"../../object/validate.coffee":49,"../../util/uniques.coffee":84}],27:[function(require,module,exports){
+},{"../../object/validate.coffee":45,"../../util/uniques.coffee":80}],26:[function(require,module,exports){
 module.exports = function(type) {
   var attrs, styles, tester;
   if (["div", "svg"].indexOf(type) < 0) {
@@ -1104,7 +971,7 @@ module.exports = function(type) {
 };
 
 
-},{}],28:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports = {
   dev: {
     accepted: "{0} is not an accepted value for {1}, please use one of the following: {2}.",
@@ -1241,7 +1108,7 @@ module.exports = {
 };
 
 
-},{}],29:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -1395,7 +1262,7 @@ module.exports = {
     ]
 }
 
-},{}],30:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -1558,7 +1425,7 @@ module.exports = {
     ]
 }
 
-},{}],31:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -1707,7 +1574,7 @@ module.exports = {
     ]
 }
 
-},{}],32:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -1871,7 +1738,7 @@ module.exports = {
     ]
 }
 
-},{}],33:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -2035,7 +1902,7 @@ module.exports = {
     ]
 }
 
-},{}],34:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -2180,7 +2047,7 @@ module.exports = {
     ]
 }
 
-},{}],35:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ".",
@@ -2329,7 +2196,7 @@ module.exports = {
     ]
 }
 
-},{}],36:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 module.exports = {
   en_US: require("./languages/en_US.coffee"),
   es_ES: require("./languages/es_ES.js"),
@@ -2342,7 +2209,7 @@ module.exports = {
 };
 
 
-},{"./languages/en_US.coffee":28,"./languages/es_ES.js":29,"./languages/fr_FR.js":30,"./languages/mk_MK.js":31,"./languages/pt_BR.js":32,"./languages/pt_PT.js":33,"./languages/ru_RU.js":34,"./languages/zh_CN.js":35}],37:[function(require,module,exports){
+},{"./languages/en_US.coffee":27,"./languages/es_ES.js":28,"./languages/fr_FR.js":29,"./languages/mk_MK.js":30,"./languages/pt_BR.js":31,"./languages/pt_PT.js":32,"./languages/ru_RU.js":33,"./languages/zh_CN.js":34}],36:[function(require,module,exports){
 var checkObject, copy, createFunction, initialize, print, process, setMethod, stringFormat, validObject;
 
 copy = require("../../util/copy.coffee");
@@ -2515,7 +2382,7 @@ checkObject = function(vars, method, object, key, value) {
 };
 
 
-},{"../../object/validate.coffee":49,"../../string/format.js":50,"../../util/copy.coffee":81,"../console/print.coffee":21,"./process/detect.coffee":38,"./set.coffee":40}],38:[function(require,module,exports){
+},{"../../object/validate.coffee":45,"../../string/format.js":46,"../../util/copy.coffee":77,"../console/print.coffee":20,"./process/detect.coffee":37,"./set.coffee":39}],37:[function(require,module,exports){
 var copy, update;
 
 copy = require("../../../util/copy.coffee");
@@ -2535,7 +2402,7 @@ module.exports = function(vars, object, value) {
 };
 
 
-},{"../../../array/update.coffee":5,"../../../util/copy.coffee":81}],39:[function(require,module,exports){
+},{"../../../array/update.coffee":4,"../../../util/copy.coffee":77}],38:[function(require,module,exports){
 var contains, format, list, print;
 
 contains = require("../../array/contains.coffee");
@@ -2587,7 +2454,7 @@ module.exports = function(vars, accepted, value, method, text) {
 };
 
 
-},{"../../array/contains.coffee":3,"../../string/format.js":50,"../../string/list.coffee":51,"../console/print.coffee":21}],40:[function(require,module,exports){
+},{"../../array/contains.coffee":2,"../../string/format.js":46,"../../string/list.coffee":47,"../console/print.coffee":20}],39:[function(require,module,exports){
 var copy, d3selection, mergeObject, print, process, rejected, stringFormat, updateArray, validObject;
 
 copy = require("../../util/copy.coffee");
@@ -2742,7 +2609,7 @@ module.exports = function(vars, method, object, key, value) {
 };
 
 
-},{"../../array/update.coffee":5,"../../object/merge.coffee":48,"../../object/validate.coffee":49,"../../string/format.js":50,"../../util/copy.coffee":81,"../../util/d3selection.coffee":82,"../console/print.coffee":21,"./process/detect.coffee":38,"./rejected.coffee":39}],41:[function(require,module,exports){
+},{"../../array/update.coffee":4,"../../object/merge.coffee":44,"../../object/validate.coffee":45,"../../string/format.js":46,"../../util/copy.coffee":77,"../../util/d3selection.coffee":78,"../console/print.coffee":20,"./process/detect.coffee":37,"./rejected.coffee":38}],40:[function(require,module,exports){
 var fontTester;
 
 fontTester = require("../core/font/tester.coffee");
@@ -2813,7 +2680,7 @@ module.exports = function(words, style, opts) {
 };
 
 
-},{"../core/font/tester.coffee":27}],42:[function(require,module,exports){
+},{"../core/font/tester.coffee":26}],41:[function(require,module,exports){
 var fontTester, validate;
 
 fontTester = require("../core/font/tester.coffee");
@@ -2871,535 +2738,7 @@ validate.complete = {};
 module.exports = validate;
 
 
-},{"../core/font/tester.coffee":27}],43:[function(require,module,exports){
-var intersectPoints, lineIntersection, pointInPoly, pointInSegmentBox, polyInsidePoly, rayIntersectsSegment, rotatePoint, rotatePoly, segmentsIntersect, simplify, squaredDist;
-
-simplify = require("simplify-js");
-
-module.exports = function(poly, options) {
-  var aRatio, aRatios, angle, angleRad, angleStep, angles, area, aspectRatioStep, aspectRatios, bBox, boxHeight, boxWidth, centroid, events, height, i, insidePoly, j, k, l, left, len, len1, len2, len3, m, maxArea, maxAspectRatio, maxHeight, maxRect, maxWidth, maxx, maxy, minAspectRatio, minSqDistH, minSqDistW, minx, miny, modifOrigins, origOrigin, origin, origins, p, p1H, p1W, p2H, p2W, rectPoly, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, right, rndPoint, rndX, rndY, tempPoly, tolerance, width, widthStep, x0, y0;
-  if (poly.length < 3) {
-    return null;
-  }
-  events = [];
-  aspectRatioStep = 0.5;
-  angleStep = 5;
-  if (options == null) {
-    options = {};
-  }
-  if (options.maxAspectRatio == null) {
-    options.maxAspectRatio = 15;
-  }
-  if (options.minWidth == null) {
-    options.minWidth = 0;
-  }
-  if (options.minHeight == null) {
-    options.minHeight = 0;
-  }
-  if (options.tolerance == null) {
-    options.tolerance = 0.02;
-  }
-  if (options.nTries == null) {
-    options.nTries = 20;
-  }
-  if (options.angle != null) {
-    if (options.angle instanceof Array) {
-      angles = options.angle;
-    } else if (typeof options.angle === 'number') {
-      angles = [options.angle];
-    } else if (typeof options.angle === 'string' && !isNaN(options.angle)) {
-      angles = [Number(options.angle)];
-    }
-  }
-  if (angles == null) {
-    angles = d3.range(-90, 90 + angleStep, angleStep);
-  }
-  if (options.aspectRatio != null) {
-    if (options.aspectRatio instanceof Array) {
-      aspectRatios = options.aspectRatio;
-    } else if (typeof options.aspectRatio === 'number') {
-      aspectRatios = [options.aspectRatio];
-    } else if (typeof options.aspectRatio === 'string' && !isNaN(options.aspectRatio)) {
-      aspectRatios = [Number(options.aspectRatio)];
-    }
-  }
-  if (options.origin != null) {
-    if (options.origin instanceof Array) {
-      if (options.origin[0] instanceof Array) {
-        origins = options.origin;
-      } else {
-        origins = [options.origin];
-      }
-    }
-  }
-  area = Math.abs(d3.geom.polygon(poly).area());
-  if (area === 0) {
-    return null;
-  }
-  ref = d3.extent(poly, function(d) {
-    return d[0];
-  }), minx = ref[0], maxx = ref[1];
-  ref1 = d3.extent(poly, function(d) {
-    return d[1];
-  }), miny = ref1[0], maxy = ref1[1];
-  tolerance = Math.min(maxx - minx, maxy - miny) * options.tolerance;
-  tempPoly = (function() {
-    var j, len, results;
-    results = [];
-    for (j = 0, len = poly.length; j < len; j++) {
-      p = poly[j];
-      results.push({
-        x: p[0],
-        y: p[1]
-      });
-    }
-    return results;
-  })();
-  if (tolerance > 0) {
-    tempPoly = simplify(tempPoly, tolerance);
-    poly = (function() {
-      var j, len, results;
-      results = [];
-      for (j = 0, len = tempPoly.length; j < len; j++) {
-        p = tempPoly[j];
-        results.push([p.x, p.y]);
-      }
-      return results;
-    })();
-  }
-  if (options.vdebug) {
-    events.push({
-      type: 'simplify',
-      poly: poly
-    });
-  }
-  ref2 = d3.extent(poly, function(d) {
-    return d[0];
-  }), minx = ref2[0], maxx = ref2[1];
-  ref3 = d3.extent(poly, function(d) {
-    return d[1];
-  }), miny = ref3[0], maxy = ref3[1];
-  bBox = [[minx, miny], [maxx, miny], [maxx, maxy], [minx, maxy]];
-  ref4 = [maxx - minx, maxy - miny], boxWidth = ref4[0], boxHeight = ref4[1];
-  widthStep = Math.min(boxWidth, boxHeight) / 50;
-  if (origins == null) {
-    origins = [];
-    centroid = d3.geom.polygon(poly).centroid();
-    if (pointInPoly(centroid, poly)) {
-      origins.push(centroid);
-    }
-    while (origins.length < options.nTries) {
-      rndX = Math.random() * boxWidth + minx;
-      rndY = Math.random() * boxHeight + miny;
-      rndPoint = [rndX, rndY];
-      if (pointInPoly(rndPoint, poly)) {
-        origins.push(rndPoint);
-      }
-    }
-  }
-  if (options.vdebug) {
-    events.push({
-      type: 'origins',
-      points: origins
-    });
-  }
-  maxArea = 0;
-  maxRect = null;
-  for (j = 0, len = angles.length; j < len; j++) {
-    angle = angles[j];
-    angleRad = -angle * Math.PI / 180;
-    if (options.vdebug) {
-      events.push({
-        type: 'angle',
-        angle: angle
-      });
-    }
-    for (i = k = 0, len1 = origins.length; k < len1; i = ++k) {
-      origOrigin = origins[i];
-      ref5 = intersectPoints(poly, origOrigin, angleRad), p1W = ref5[0], p2W = ref5[1];
-      ref6 = intersectPoints(poly, origOrigin, angleRad + Math.PI / 2), p1H = ref6[0], p2H = ref6[1];
-      modifOrigins = [];
-      if ((p1W != null) && (p2W != null)) {
-        modifOrigins.push([(p1W[0] + p2W[0]) / 2, (p1W[1] + p2W[1]) / 2]);
-      }
-      if ((p1H != null) && (p2H != null)) {
-        modifOrigins.push([(p1H[0] + p2H[0]) / 2, (p1H[1] + p2H[1]) / 2]);
-      }
-      if (options.vdebug) {
-        events.push({
-          type: 'modifOrigin',
-          idx: i,
-          p1W: p1W,
-          p2W: p2W,
-          p1H: p1H,
-          p2H: p2H,
-          modifOrigins: modifOrigins
-        });
-      }
-      for (l = 0, len2 = modifOrigins.length; l < len2; l++) {
-        origin = modifOrigins[l];
-        if (options.vdebug) {
-          events.push({
-            type: 'origin',
-            cx: origin[0],
-            cy: origin[1]
-          });
-        }
-        ref7 = intersectPoints(poly, origin, angleRad), p1W = ref7[0], p2W = ref7[1];
-        if (p1W === null || p2W === null) {
-          continue;
-        }
-        minSqDistW = Math.min(squaredDist(origin, p1W), squaredDist(origin, p2W));
-        maxWidth = 2 * Math.sqrt(minSqDistW);
-        ref8 = intersectPoints(poly, origin, angleRad + Math.PI / 2), p1H = ref8[0], p2H = ref8[1];
-        if (p1H === null || p2H === null) {
-          continue;
-        }
-        minSqDistH = Math.min(squaredDist(origin, p1H), squaredDist(origin, p2H));
-        maxHeight = 2 * Math.sqrt(minSqDistH);
-        if (maxWidth * maxHeight < maxArea) {
-          continue;
-        }
-        if (aspectRatios != null) {
-          aRatios = aspectRatios;
-        } else {
-          minAspectRatio = Math.max(1, options.minWidth / maxHeight, maxArea / (maxHeight * maxHeight));
-          maxAspectRatio = Math.min(options.maxAspectRatio, maxWidth / options.minHeight, (maxWidth * maxWidth) / maxArea);
-          aRatios = d3.range(minAspectRatio, maxAspectRatio + aspectRatioStep, aspectRatioStep);
-        }
-        for (m = 0, len3 = aRatios.length; m < len3; m++) {
-          aRatio = aRatios[m];
-          left = Math.max(options.minWidth, Math.sqrt(maxArea * aRatio));
-          right = Math.min(maxWidth, maxHeight * aRatio);
-          if (right * maxHeight < maxArea) {
-            continue;
-          }
-          if ((right - left) >= widthStep) {
-            if (options.vdebug) {
-              events.push({
-                type: 'aRatio',
-                aRatio: aRatio
-              });
-            }
-          }
-          while ((right - left) >= widthStep) {
-            width = (left + right) / 2;
-            height = width / aRatio;
-            x0 = origin[0], y0 = origin[1];
-            rectPoly = [[x0 - width / 2, y0 - height / 2], [x0 + width / 2, y0 - height / 2], [x0 + width / 2, y0 + height / 2], [x0 - width / 2, y0 + height / 2]];
-            rectPoly = rotatePoly(rectPoly, angleRad, origin);
-            if (polyInsidePoly(rectPoly, poly)) {
-              insidePoly = true;
-              maxArea = width * height;
-              maxRect = {
-                cx: x0,
-                cy: y0,
-                width: width,
-                height: height,
-                angle: angle
-              };
-              left = width;
-            } else {
-              insidePoly = false;
-              right = width;
-            }
-            if (options.vdebug) {
-              events.push({
-                type: 'rectangle',
-                cx: x0,
-                cy: y0,
-                width: width,
-                height: height,
-                areaFraction: (width * height) / area,
-                angle: angle,
-                insidePoly: insidePoly
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-  return [maxRect, maxArea, events];
-};
-
-squaredDist = function(a, b) {
-  var deltax, deltay;
-  deltax = b[0] - a[0];
-  deltay = b[1] - a[1];
-  return deltax * deltax + deltay * deltay;
-};
-
-rayIntersectsSegment = function(p, p1, p2) {
-  var a, b, mAB, mAP, ref;
-  ref = p1[1] < p2[1] ? [p1, p2] : [p2, p1], a = ref[0], b = ref[1];
-  if (p[1] === b[1] || p[1] === a[1]) {
-    p[1] += Number.MIN_VALUE;
-  }
-  if (p[1] > b[1] || p[1] < a[1]) {
-    return false;
-  } else if (p[0] > a[0] && p[0] > b[0]) {
-    return false;
-  } else if (p[0] < a[0] && p[0] < b[0]) {
-    return true;
-  } else {
-    mAB = (b[1] - a[1]) / (b[0] - a[0]);
-    mAP = (p[1] - a[1]) / (p[0] - a[0]);
-    return mAP > mAB;
-  }
-};
-
-pointInPoly = function(p, poly) {
-  var a, b, c, i, n;
-  i = -1;
-  n = poly.length;
-  b = poly[n - 1];
-  c = 0;
-  while (++i < n) {
-    a = b;
-    b = poly[i];
-    if (rayIntersectsSegment(p, a, b)) {
-      c++;
-    }
-  }
-  return c % 2 !== 0;
-};
-
-pointInSegmentBox = function(p, p1, q1) {
-  var eps, px, py;
-  eps = 1e-9;
-  px = p[0], py = p[1];
-  if (px < Math.min(p1[0], q1[0]) - eps || px > Math.max(p1[0], q1[0]) + eps || py < Math.min(p1[1], q1[1]) - eps || py > Math.max(p1[1], q1[1]) + eps) {
-    return false;
-  }
-  return true;
-};
-
-lineIntersection = function(p1, q1, p2, q2) {
-  var cross1, cross2, denom, dx1, dx2, dy1, dy2, eps, px, py;
-  eps = 1e-9;
-  dx1 = p1[0] - q1[0];
-  dy1 = p1[1] - q1[1];
-  dx2 = p2[0] - q2[0];
-  dy2 = p2[1] - q2[1];
-  denom = dx1 * dy2 - dy1 * dx2;
-  if (Math.abs(denom) < eps) {
-    return null;
-  }
-  cross1 = p1[0] * q1[1] - p1[1] * q1[0];
-  cross2 = p2[0] * q2[1] - p2[1] * q2[0];
-  px = (cross1 * dx2 - cross2 * dx1) / denom;
-  py = (cross1 * dy2 - cross2 * dy1) / denom;
-  return [px, py];
-};
-
-segmentsIntersect = function(p1, q1, p2, q2) {
-  var p;
-  p = lineIntersection(p1, q1, p2, q2);
-  if (p == null) {
-    return false;
-  }
-  return pointInSegmentBox(p, p1, q1) && pointInSegmentBox(p, p2, q2);
-};
-
-polyInsidePoly = function(polyA, polyB) {
-  var aA, aB, bA, bB, iA, iB, nA, nB;
-  iA = -1;
-  nA = polyA.length;
-  nB = polyB.length;
-  bA = polyA[nA - 1];
-  while (++iA < nA) {
-    aA = bA;
-    bA = polyA[iA];
-    iB = -1;
-    bB = polyB[nB - 1];
-    while (++iB < nB) {
-      aB = bB;
-      bB = polyB[iB];
-      if (segmentsIntersect(aA, bA, aB, bB)) {
-        return false;
-      }
-    }
-  }
-  return pointInPoly(polyA[0], polyB);
-};
-
-rotatePoint = function(p, alpha, origin) {
-  var cosAlpha, sinAlpha, xshifted, yshifted;
-  if (origin == null) {
-    origin = [0, 0];
-  }
-  xshifted = p[0] - origin[0];
-  yshifted = p[1] - origin[1];
-  cosAlpha = Math.cos(alpha);
-  sinAlpha = Math.sin(alpha);
-  return [cosAlpha * xshifted - sinAlpha * yshifted + origin[0], sinAlpha * xshifted + cosAlpha * yshifted + origin[1]];
-};
-
-rotatePoly = function(poly, alpha, origin) {
-  var j, len, point, results;
-  results = [];
-  for (j = 0, len = poly.length; j < len; j++) {
-    point = poly[j];
-    results.push(rotatePoint(point, alpha, origin));
-  }
-  return results;
-};
-
-intersectPoints = function(poly, origin, alpha) {
-  var a, b, closestPointLeft, closestPointRight, eps, i, idx, minSqDistLeft, minSqDistRight, n, p, shiftedOrigin, sqDist, x0, y0;
-  eps = 1e-9;
-  origin = [origin[0] + eps * Math.cos(alpha), origin[1] + eps * Math.sin(alpha)];
-  x0 = origin[0], y0 = origin[1];
-  shiftedOrigin = [x0 + Math.cos(alpha), y0 + Math.sin(alpha)];
-  idx = 0;
-  if (Math.abs(shiftedOrigin[0] - x0) < eps) {
-    idx = 1;
-  }
-  i = -1;
-  n = poly.length;
-  b = poly[n - 1];
-  minSqDistLeft = Number.MAX_VALUE;
-  minSqDistRight = Number.MAX_VALUE;
-  closestPointLeft = null;
-  closestPointRight = null;
-  while (++i < n) {
-    a = b;
-    b = poly[i];
-    p = lineIntersection(origin, shiftedOrigin, a, b);
-    if ((p != null) && pointInSegmentBox(p, a, b)) {
-      sqDist = squaredDist(origin, p);
-      if (p[idx] < origin[idx]) {
-        if (sqDist < minSqDistLeft) {
-          minSqDistLeft = sqDist;
-          closestPointLeft = p;
-        }
-      } else if (p[idx] > origin[idx]) {
-        if (sqDist < minSqDistRight) {
-          minSqDistRight = sqDist;
-          closestPointRight = p;
-        }
-      }
-    }
-  }
-  return [closestPointLeft, closestPointRight];
-};
-
-
-},{"simplify-js":1}],44:[function(require,module,exports){
-module.exports = function(radians, distance, shape) {
-  var adjacentLegLength, coords, diagonal, oppositeLegLength;
-  coords = {
-    x: 0,
-    y: 0
-  };
-  if (radians < 0) {
-    radians = Math.PI * 2 + radians;
-  }
-  if (shape === "square") {
-    diagonal = 45 * (Math.PI / 180);
-    if (radians <= Math.PI) {
-      if (radians < (Math.PI / 2)) {
-        if (radians < diagonal) {
-          coords.x += distance;
-          oppositeLegLength = Math.tan(radians) * distance;
-          coords.y += oppositeLegLength;
-        } else {
-          coords.y += distance;
-          adjacentLegLength = distance / Math.tan(radians);
-          coords.x += adjacentLegLength;
-        }
-      } else {
-        if (radians < (Math.PI - diagonal)) {
-          coords.y += distance;
-          adjacentLegLength = distance / Math.tan(Math.PI - radians);
-          coords.x -= adjacentLegLength;
-        } else {
-          coords.x -= distance;
-          oppositeLegLength = Math.tan(Math.PI - radians) * distance;
-          coords.y += oppositeLegLength;
-        }
-      }
-    } else {
-      if (radians < (3 * Math.PI / 2)) {
-        if (radians < (diagonal + Math.PI)) {
-          coords.x -= distance;
-          oppositeLegLength = Math.tan(radians - Math.PI) * distance;
-          coords.y -= oppositeLegLength;
-        } else {
-          coords.y -= distance;
-          adjacentLegLength = distance / Math.tan(radians - Math.PI);
-          coords.x -= adjacentLegLength;
-        }
-      } else {
-        if (radians < (2 * Math.PI - diagonal)) {
-          coords.y -= distance;
-          adjacentLegLength = distance / Math.tan(2 * Math.PI - radians);
-          coords.x += adjacentLegLength;
-        } else {
-          coords.x += distance;
-          oppositeLegLength = Math.tan(2 * Math.PI - radians) * distance;
-          coords.y -= oppositeLegLength;
-        }
-      }
-    }
-  } else {
-    coords.x += distance * Math.cos(radians);
-    coords.y += distance * Math.sin(radians);
-  }
-  return coords;
-};
-
-
-},{}],45:[function(require,module,exports){
-var offset;
-
-offset = require("../geom/offset.coffee");
-
-module.exports = function(path) {
-  var angle, i, j, last, len, length, o, obtuse, p, poly, prev, radius, segments, start, step, width;
-  if (!path) {
-    return [];
-  }
-  path = path.slice(1).slice(0, -1).split(/L|A/);
-  poly = [];
-  for (j = 0, len = path.length; j < len; j++) {
-    p = path[j];
-    p = p.split(" ");
-    if (p.length === 1) {
-      poly.push(p[0].split(",").map(function(d) {
-        return parseFloat(d);
-      }));
-    } else {
-      prev = poly[poly.length - 1];
-      last = p.pop().split(",").map(function(d) {
-        return parseFloat(d);
-      });
-      radius = parseFloat(p.shift().split(",")[0]);
-      width = Math.sqrt(Math.pow(last[0] - prev[0], 2) + Math.pow(last[1] - prev[1], 2));
-      angle = Math.acos((radius * radius + radius * radius - width * width) / (2 * radius * radius));
-      obtuse = p[1].split(",")[0] === "1";
-      if (obtuse) {
-        angle = Math.PI * 2 - angle;
-      }
-      length = angle / (Math.PI * 2) * (radius * Math.PI * 2);
-      segments = length / 5;
-      start = Math.atan2(-prev[1], -prev[0]) - Math.PI;
-      step = angle / segments;
-      i = step;
-      while (i < angle) {
-        o = offset(start + i, radius);
-        poly.push([o.x, o.y]);
-        i += step;
-      }
-      poly.push(last);
-    }
-  }
-  return poly;
-};
-
-
-},{"../geom/offset.coffee":44}],46:[function(require,module,exports){
+},{"../core/font/tester.coffee":26}],42:[function(require,module,exports){
 
 /**
  * @class d3plus
@@ -3504,20 +2843,6 @@ d3plus.font = {
 
 
 /**
- * Utilities related to geometric algorithms.
- * @class d3plus.geom
- * @for d3plus
- * @static
- */
-
-d3plus.geom = {
-  largestRect: require("./geom/largestRect.coffee"),
-  offset: require("./geom/offset.coffee"),
-  path2poly: require("./geom/path2poly.coffee")
-};
-
-
-/**
  * Utilities that process numbers.
  * @class d3plus.number
  * @for d3plus
@@ -3592,7 +2917,7 @@ if (stylesheet("d3plus.css")) {
 }
 
 
-},{"./array/comparator.coffee":2,"./array/contains.coffee":3,"./array/sort.coffee":4,"./array/update.coffee":5,"./client/css.coffee":6,"./client/ie.js":7,"./client/pointer.coffee":8,"./client/prefix.coffee":9,"./client/rtl.coffee":10,"./client/scrollbar.coffee":11,"./client/touch.coffee":12,"./color/legible.coffee":13,"./color/lighter.coffee":14,"./color/mix.coffee":15,"./color/random.coffee":16,"./color/scale.coffee":17,"./color/sort.coffee":18,"./color/text.coffee":19,"./color/validate.coffee":20,"./core/console/print.coffee":21,"./font/sizes.coffee":41,"./font/validate.coffee":42,"./geom/largestRect.coffee":43,"./geom/offset.coffee":44,"./geom/path2poly.coffee":45,"./number/format.coffee":47,"./object/merge.coffee":48,"./object/validate.coffee":49,"./string/format.js":50,"./string/list.coffee":51,"./string/strip.js":52,"./string/title.coffee":53,"./textwrap/textwrap.coffee":77,"./util/buckets.coffee":78,"./util/child.coffee":79,"./util/closest.coffee":80,"./util/copy.coffee":81,"./util/d3selection.coffee":82,"./util/dataURL.coffee":83,"./util/uniques.coffee":84}],47:[function(require,module,exports){
+},{"./array/comparator.coffee":1,"./array/contains.coffee":2,"./array/sort.coffee":3,"./array/update.coffee":4,"./client/css.coffee":5,"./client/ie.js":6,"./client/pointer.coffee":7,"./client/prefix.coffee":8,"./client/rtl.coffee":9,"./client/scrollbar.coffee":10,"./client/touch.coffee":11,"./color/legible.coffee":12,"./color/lighter.coffee":13,"./color/mix.coffee":14,"./color/random.coffee":15,"./color/scale.coffee":16,"./color/sort.coffee":17,"./color/text.coffee":18,"./color/validate.coffee":19,"./core/console/print.coffee":20,"./font/sizes.coffee":40,"./font/validate.coffee":41,"./number/format.coffee":43,"./object/merge.coffee":44,"./object/validate.coffee":45,"./string/format.js":46,"./string/list.coffee":47,"./string/strip.js":48,"./string/title.coffee":49,"./textwrap/textwrap.coffee":73,"./util/buckets.coffee":74,"./util/child.coffee":75,"./util/closest.coffee":76,"./util/copy.coffee":77,"./util/d3selection.coffee":78,"./util/dataURL.coffee":79,"./util/uniques.coffee":80}],43:[function(require,module,exports){
 var defaultLocale;
 
 defaultLocale = require("../core/locale/languages/en_US.coffee");
@@ -3672,7 +2997,7 @@ module.exports = function(number, opts) {
 };
 
 
-},{"../core/locale/languages/en_US.coffee":28}],48:[function(require,module,exports){
+},{"../core/locale/languages/en_US.coffee":27}],44:[function(require,module,exports){
 var d3selection, validate;
 
 d3selection = require("../util/d3selection.coffee");
@@ -3724,7 +3049,7 @@ module.exports = function(obj1, obj2) {
 };
 
 
-},{"../util/d3selection.coffee":82,"./validate.coffee":49}],49:[function(require,module,exports){
+},{"../util/d3selection.coffee":78,"./validate.coffee":45}],45:[function(require,module,exports){
 
 /**
  * This function returns true if the variable passed is a literal javascript keyed Object. It's a small, simple function, but it catches some edge-cases that can throw off your code (such as Arrays and `null`).
@@ -3738,7 +3063,7 @@ module.exports = function(obj) {
 };
 
 
-},{}],50:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // Formats a string similar to Python's "format"
 //------------------------------------------------------------------------------
@@ -3769,7 +3094,7 @@ module.exports = function() {
 
 }
 
-},{}],51:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 var format, locale;
 
 format = require("./format.js");
@@ -3805,7 +3130,7 @@ module.exports = function(list, andText, max, moreText) {
 };
 
 
-},{"../core/locale/languages/en_US.coffee":28,"./format.js":50}],52:[function(require,module,exports){
+},{"../core/locale/languages/en_US.coffee":27,"./format.js":46}],48:[function(require,module,exports){
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // Removes all non ASCII characters
 //------------------------------------------------------------------------------
@@ -3857,7 +3182,7 @@ module.exports = function(str) {
 
 };
 
-},{}],53:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 var defaultLocale;
 
 defaultLocale = require("../core/locale/languages/en_US.coffee");
@@ -3903,7 +3228,7 @@ module.exports = function(text, opts) {
 };
 
 
-},{"../core/locale/languages/en_US.coffee":28}],54:[function(require,module,exports){
+},{"../core/locale/languages/en_US.coffee":27}],50:[function(require,module,exports){
 var foreign, tspan;
 
 foreign = require("./foreign.coffee");
@@ -3919,7 +3244,7 @@ module.exports = function(vars) {
 };
 
 
-},{"./foreign.coffee":55,"./tspan.coffee":58}],55:[function(require,module,exports){
+},{"./foreign.coffee":51,"./tspan.coffee":54}],51:[function(require,module,exports){
 module.exports = function(vars) {
   var anchor, color, family, opacity, text;
   text = vars.container.value;
@@ -3932,7 +3257,7 @@ module.exports = function(vars) {
 };
 
 
-},{}],56:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 module.exports = function(vars) {
   var diff, elem, height, prev, radius, shape, size, width, x, y;
   elem = vars.container.value;
@@ -4025,7 +3350,7 @@ module.exports = function(vars) {
 };
 
 
-},{}],57:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 module.exports = function(vars) {
   var text;
   if (!vars.text.value) {
@@ -4054,7 +3379,7 @@ module.exports = function(vars) {
 };
 
 
-},{}],58:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 var rtl;
 
 rtl = require("../../client/rtl.coffee");
@@ -4247,7 +3572,7 @@ module.exports = function(vars) {
 };
 
 
-},{"../../client/rtl.coffee":10}],59:[function(require,module,exports){
+},{"../../client/rtl.coffee":9}],55:[function(require,module,exports){
 var flow, fontSizes, resize, wrap;
 
 flow = require("./flow.coffee");
@@ -4328,7 +3653,7 @@ resize = function(vars) {
 };
 
 
-},{"../../font/sizes.coffee":41,"./flow.coffee":54}],60:[function(require,module,exports){
+},{"../../font/sizes.coffee":40,"./flow.coffee":50}],56:[function(require,module,exports){
 module.exports = {
   accepted: [false, "start", "middle", "end", "left", "center", "right"],
   process: function(value) {
@@ -4343,7 +3668,7 @@ module.exports = {
 };
 
 
-},{}],61:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 module.exports = {
   accepted: [Object],
   objectAccess: false,
@@ -4361,7 +3686,7 @@ module.exports = {
 };
 
 
-},{}],62:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 var d3selection;
 
 d3selection = require("../../util/d3selection.coffee");
@@ -4385,14 +3710,14 @@ module.exports = {
 };
 
 
-},{"../../util/d3selection.coffee":82}],63:[function(require,module,exports){
+},{"../../util/d3selection.coffee":78}],59:[function(require,module,exports){
 module.exports = {
   accepted: [Boolean],
   value: false
 };
 
 
-},{}],64:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 var print, stringFormat;
 
 print = require("../../core/console/print.coffee");
@@ -4424,7 +3749,7 @@ module.exports = {
 };
 
 
-},{"../../core/console/print.coffee":21,"../../string/format.js":50}],65:[function(require,module,exports){
+},{"../../core/console/print.coffee":20,"../../string/format.js":46}],61:[function(require,module,exports){
 var locale, mergeObject;
 
 locale = require("../../core/locale/locale.coffee");
@@ -4465,49 +3790,49 @@ module.exports = {
 };
 
 
-},{"../../core/locale/locale.coffee":36,"../../object/merge.coffee":48}],66:[function(require,module,exports){
+},{"../../core/locale/locale.coffee":35,"../../object/merge.coffee":44}],62:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],67:[function(require,module,exports){
+},{}],63:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],68:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 module.exports = {
   accepted: [Boolean],
   value: false
 };
 
 
-},{}],69:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 module.exports = {
   accepted: [-180, -90, 0, 90, 180],
   value: 0
 };
 
 
-},{}],70:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 module.exports = {
   accepted: ["circle", "square"],
   value: false
 };
 
 
-},{}],71:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 module.exports = {
   accepted: [Array, false],
   value: false
 };
 
 
-},{}],72:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 module.exports = {
   accepted: [false, Array, Number, String],
   html: {
@@ -4527,35 +3852,35 @@ module.exports = {
 };
 
 
-},{}],73:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 module.exports = {
   accepted: [false, "top", "middle", "bottom"],
   value: false
 };
 
 
-},{}],74:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],75:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],76:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],77:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 var attach, print, sizes, text, wrap;
 
 attach = require("../core/methods/attach.coffee");
@@ -4610,7 +3935,7 @@ module.exports = function() {
 };
 
 
-},{"../core/console/print.coffee":21,"../core/methods/attach.coffee":37,"./helpers/parseSize.coffee":56,"./helpers/parseText.coffee":57,"./helpers/wrap.coffee":59,"./methods/align.coffee":60,"./methods/config.coffee":61,"./methods/container.coffee":62,"./methods/dev.coffee":63,"./methods/draw.coffee":64,"./methods/format.coffee":65,"./methods/height.coffee":66,"./methods/padding.coffee":67,"./methods/resize.coffee":68,"./methods/rotate.coffee":69,"./methods/shape.coffee":70,"./methods/size.coffee":71,"./methods/text.coffee":72,"./methods/valign.coffee":73,"./methods/width.coffee":74,"./methods/x.coffee":75,"./methods/y.coffee":76}],78:[function(require,module,exports){
+},{"../core/console/print.coffee":20,"../core/methods/attach.coffee":36,"./helpers/parseSize.coffee":52,"./helpers/parseText.coffee":53,"./helpers/wrap.coffee":55,"./methods/align.coffee":56,"./methods/config.coffee":57,"./methods/container.coffee":58,"./methods/dev.coffee":59,"./methods/draw.coffee":60,"./methods/format.coffee":61,"./methods/height.coffee":62,"./methods/padding.coffee":63,"./methods/resize.coffee":64,"./methods/rotate.coffee":65,"./methods/shape.coffee":66,"./methods/size.coffee":67,"./methods/text.coffee":68,"./methods/valign.coffee":69,"./methods/width.coffee":70,"./methods/x.coffee":71,"./methods/y.coffee":72}],74:[function(require,module,exports){
 module.exports = function(arr, n) {
   var buckets, step;
   buckets = [];
@@ -4619,7 +3944,7 @@ module.exports = function(arr, n) {
 };
 
 
-},{}],79:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 var d3selection;
 
 d3selection = require("./d3selection.coffee");
@@ -4646,7 +3971,7 @@ module.exports = function(parent, child) {
 };
 
 
-},{"./d3selection.coffee":82}],80:[function(require,module,exports){
+},{"./d3selection.coffee":78}],76:[function(require,module,exports){
 module.exports = function(arr, value) {
   var closest, i;
   if (value.constructor === String) {
@@ -4667,7 +3992,7 @@ module.exports = function(arr, value) {
 };
 
 
-},{}],81:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 var copy, objectMerge, objectValidate;
 
 objectMerge = require("../object/merge.coffee");
@@ -4692,7 +4017,7 @@ copy = function(variable) {
 module.exports = copy;
 
 
-},{"../object/merge.coffee":48,"../object/validate.coffee":49}],82:[function(require,module,exports){
+},{"../object/merge.coffee":44,"../object/validate.coffee":45}],78:[function(require,module,exports){
 var ie;
 
 ie = require("../client/ie.js");
@@ -4706,7 +4031,7 @@ module.exports = function(elem) {
 };
 
 
-},{"../client/ie.js":7}],83:[function(require,module,exports){
+},{"../client/ie.js":6}],79:[function(require,module,exports){
 module.exports = function(url, callback) {
   var img;
   img = new Image();
@@ -4725,7 +4050,7 @@ module.exports = function(url, callback) {
 };
 
 
-},{}],84:[function(require,module,exports){
+},{}],80:[function(require,module,exports){
 var objectValidate, uniques;
 
 objectValidate = require("../object/validate.coffee");
@@ -4798,4 +4123,4 @@ uniques = function(data, value, fetch, vars, depth) {
 module.exports = uniques;
 
 
-},{"../object/validate.coffee":49}]},{},[46]);
+},{"../object/validate.coffee":45}]},{},[42]);

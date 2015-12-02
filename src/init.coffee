@@ -79,17 +79,6 @@ d3plus.font =
   validate: require "./font/validate.coffee"
 
 ###*
-# Utilities related to geometric algorithms.
-# @class d3plus.geom
-# @for d3plus
-# @static
-###
-d3plus.geom =
-  largestRect: require "./geom/largestRect.coffee"
-  offset:      require "./geom/offset.coffee"
-  path2poly:   require "./geom/path2poly.coffee"
-
-###*
 # Utilities that process numbers.
 # @class d3plus.number
 # @for d3plus

@@ -9550,675 +9550,6 @@
   if (typeof define === "function" && define.amd) this.d3 = d3, define(d3); else if (typeof module === "object" && module.exports) module.exports = d3; else this.d3 = d3;
 }();
 },{}],2:[function(require,module,exports){
-/*
- (c) 2013, Vladimir Agafonkin
- Simplify.js, a high-performance JS polyline simplification library
- mourner.github.io/simplify-js
-*/
-
-(function () { 'use strict';
-
-// to suit your point format, run search/replace for '.x' and '.y';
-// for 3D version, see 3d branch (configurability would draw significant performance overhead)
-
-// square distance between 2 points
-function getSqDist(p1, p2) {
-
-    var dx = p1.x - p2.x,
-        dy = p1.y - p2.y;
-
-    return dx * dx + dy * dy;
-}
-
-// square distance from a point to a segment
-function getSqSegDist(p, p1, p2) {
-
-    var x = p1.x,
-        y = p1.y,
-        dx = p2.x - x,
-        dy = p2.y - y;
-
-    if (dx !== 0 || dy !== 0) {
-
-        var t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
-
-        if (t > 1) {
-            x = p2.x;
-            y = p2.y;
-
-        } else if (t > 0) {
-            x += dx * t;
-            y += dy * t;
-        }
-    }
-
-    dx = p.x - x;
-    dy = p.y - y;
-
-    return dx * dx + dy * dy;
-}
-// rest of the code doesn't care about point format
-
-// basic distance-based simplification
-function simplifyRadialDist(points, sqTolerance) {
-
-    var prevPoint = points[0],
-        newPoints = [prevPoint],
-        point;
-
-    for (var i = 1, len = points.length; i < len; i++) {
-        point = points[i];
-
-        if (getSqDist(point, prevPoint) > sqTolerance) {
-            newPoints.push(point);
-            prevPoint = point;
-        }
-    }
-
-    if (prevPoint !== point) newPoints.push(point);
-
-    return newPoints;
-}
-
-// simplification using optimized Douglas-Peucker algorithm with recursion elimination
-function simplifyDouglasPeucker(points, sqTolerance) {
-
-    var len = points.length,
-        MarkerArray = typeof Uint8Array !== 'undefined' ? Uint8Array : Array,
-        markers = new MarkerArray(len),
-        first = 0,
-        last = len - 1,
-        stack = [],
-        newPoints = [],
-        i, maxSqDist, sqDist, index;
-
-    markers[first] = markers[last] = 1;
-
-    while (last) {
-
-        maxSqDist = 0;
-
-        for (i = first + 1; i < last; i++) {
-            sqDist = getSqSegDist(points[i], points[first], points[last]);
-
-            if (sqDist > maxSqDist) {
-                index = i;
-                maxSqDist = sqDist;
-            }
-        }
-
-        if (maxSqDist > sqTolerance) {
-            markers[index] = 1;
-            stack.push(first, index, index, last);
-        }
-
-        last = stack.pop();
-        first = stack.pop();
-    }
-
-    for (i = 0; i < len; i++) {
-        if (markers[i]) newPoints.push(points[i]);
-    }
-
-    return newPoints;
-}
-
-// both algorithms combined for awesome performance
-function simplify(points, tolerance, highestQuality) {
-
-    var sqTolerance = tolerance !== undefined ? tolerance * tolerance : 1;
-
-    points = highestQuality ? points : simplifyRadialDist(points, sqTolerance);
-    points = simplifyDouglasPeucker(points, sqTolerance);
-
-    return points;
-}
-
-// export as AMD module / Node module / browser or worker variable
-if (typeof define === 'function' && define.amd) define(function() { return simplify; });
-else if (typeof module !== 'undefined') module.exports = simplify;
-else if (typeof self !== 'undefined') self.simplify = simplify;
-else window.simplify = simplify;
-
-})();
-
-},{}],3:[function(require,module,exports){
-!function() {
-  var topojson = {
-    version: "1.6.19",
-    mesh: function(topology) { return object(topology, meshArcs.apply(this, arguments)); },
-    meshArcs: meshArcs,
-    merge: function(topology) { return object(topology, mergeArcs.apply(this, arguments)); },
-    mergeArcs: mergeArcs,
-    feature: featureOrCollection,
-    neighbors: neighbors,
-    presimplify: presimplify
-  };
-
-  function stitchArcs(topology, arcs) {
-    var stitchedArcs = {},
-        fragmentByStart = {},
-        fragmentByEnd = {},
-        fragments = [],
-        emptyIndex = -1;
-
-    // Stitch empty arcs first, since they may be subsumed by other arcs.
-    arcs.forEach(function(i, j) {
-      var arc = topology.arcs[i < 0 ? ~i : i], t;
-      if (arc.length < 3 && !arc[1][0] && !arc[1][1]) {
-        t = arcs[++emptyIndex], arcs[emptyIndex] = i, arcs[j] = t;
-      }
-    });
-
-    arcs.forEach(function(i) {
-      var e = ends(i),
-          start = e[0],
-          end = e[1],
-          f, g;
-
-      if (f = fragmentByEnd[start]) {
-        delete fragmentByEnd[f.end];
-        f.push(i);
-        f.end = end;
-        if (g = fragmentByStart[end]) {
-          delete fragmentByStart[g.start];
-          var fg = g === f ? f : f.concat(g);
-          fragmentByStart[fg.start = f.start] = fragmentByEnd[fg.end = g.end] = fg;
-        } else {
-          fragmentByStart[f.start] = fragmentByEnd[f.end] = f;
-        }
-      } else if (f = fragmentByStart[end]) {
-        delete fragmentByStart[f.start];
-        f.unshift(i);
-        f.start = start;
-        if (g = fragmentByEnd[start]) {
-          delete fragmentByEnd[g.end];
-          var gf = g === f ? f : g.concat(f);
-          fragmentByStart[gf.start = g.start] = fragmentByEnd[gf.end = f.end] = gf;
-        } else {
-          fragmentByStart[f.start] = fragmentByEnd[f.end] = f;
-        }
-      } else {
-        f = [i];
-        fragmentByStart[f.start = start] = fragmentByEnd[f.end = end] = f;
-      }
-    });
-
-    function ends(i) {
-      var arc = topology.arcs[i < 0 ? ~i : i], p0 = arc[0], p1;
-      if (topology.transform) p1 = [0, 0], arc.forEach(function(dp) { p1[0] += dp[0], p1[1] += dp[1]; });
-      else p1 = arc[arc.length - 1];
-      return i < 0 ? [p1, p0] : [p0, p1];
-    }
-
-    function flush(fragmentByEnd, fragmentByStart) {
-      for (var k in fragmentByEnd) {
-        var f = fragmentByEnd[k];
-        delete fragmentByStart[f.start];
-        delete f.start;
-        delete f.end;
-        f.forEach(function(i) { stitchedArcs[i < 0 ? ~i : i] = 1; });
-        fragments.push(f);
-      }
-    }
-
-    flush(fragmentByEnd, fragmentByStart);
-    flush(fragmentByStart, fragmentByEnd);
-    arcs.forEach(function(i) { if (!stitchedArcs[i < 0 ? ~i : i]) fragments.push([i]); });
-
-    return fragments;
-  }
-
-  function meshArcs(topology, o, filter) {
-    var arcs = [];
-
-    if (arguments.length > 1) {
-      var geomsByArc = [],
-          geom;
-
-      function arc(i) {
-        var j = i < 0 ? ~i : i;
-        (geomsByArc[j] || (geomsByArc[j] = [])).push({i: i, g: geom});
-      }
-
-      function line(arcs) {
-        arcs.forEach(arc);
-      }
-
-      function polygon(arcs) {
-        arcs.forEach(line);
-      }
-
-      function geometry(o) {
-        if (o.type === "GeometryCollection") o.geometries.forEach(geometry);
-        else if (o.type in geometryType) geom = o, geometryType[o.type](o.arcs);
-      }
-
-      var geometryType = {
-        LineString: line,
-        MultiLineString: polygon,
-        Polygon: polygon,
-        MultiPolygon: function(arcs) { arcs.forEach(polygon); }
-      };
-
-      geometry(o);
-
-      geomsByArc.forEach(arguments.length < 3
-          ? function(geoms) { arcs.push(geoms[0].i); }
-          : function(geoms) { if (filter(geoms[0].g, geoms[geoms.length - 1].g)) arcs.push(geoms[0].i); });
-    } else {
-      for (var i = 0, n = topology.arcs.length; i < n; ++i) arcs.push(i);
-    }
-
-    return {type: "MultiLineString", arcs: stitchArcs(topology, arcs)};
-  }
-
-  function mergeArcs(topology, objects) {
-    var polygonsByArc = {},
-        polygons = [],
-        components = [];
-
-    objects.forEach(function(o) {
-      if (o.type === "Polygon") register(o.arcs);
-      else if (o.type === "MultiPolygon") o.arcs.forEach(register);
-    });
-
-    function register(polygon) {
-      polygon.forEach(function(ring) {
-        ring.forEach(function(arc) {
-          (polygonsByArc[arc = arc < 0 ? ~arc : arc] || (polygonsByArc[arc] = [])).push(polygon);
-        });
-      });
-      polygons.push(polygon);
-    }
-
-    function exterior(ring) {
-      return cartesianRingArea(object(topology, {type: "Polygon", arcs: [ring]}).coordinates[0]) > 0; // TODO allow spherical?
-    }
-
-    polygons.forEach(function(polygon) {
-      if (!polygon._) {
-        var component = [],
-            neighbors = [polygon];
-        polygon._ = 1;
-        components.push(component);
-        while (polygon = neighbors.pop()) {
-          component.push(polygon);
-          polygon.forEach(function(ring) {
-            ring.forEach(function(arc) {
-              polygonsByArc[arc < 0 ? ~arc : arc].forEach(function(polygon) {
-                if (!polygon._) {
-                  polygon._ = 1;
-                  neighbors.push(polygon);
-                }
-              });
-            });
-          });
-        }
-      }
-    });
-
-    polygons.forEach(function(polygon) {
-      delete polygon._;
-    });
-
-    return {
-      type: "MultiPolygon",
-      arcs: components.map(function(polygons) {
-        var arcs = [];
-
-        // Extract the exterior (unique) arcs.
-        polygons.forEach(function(polygon) {
-          polygon.forEach(function(ring) {
-            ring.forEach(function(arc) {
-              if (polygonsByArc[arc < 0 ? ~arc : arc].length < 2) {
-                arcs.push(arc);
-              }
-            });
-          });
-        });
-
-        // Stitch the arcs into one or more rings.
-        arcs = stitchArcs(topology, arcs);
-
-        // If more than one ring is returned,
-        // at most one of these rings can be the exterior;
-        // this exterior ring has the same winding order
-        // as any exterior ring in the original polygons.
-        if ((n = arcs.length) > 1) {
-          var sgn = exterior(polygons[0][0]);
-          for (var i = 0, t; i < n; ++i) {
-            if (sgn === exterior(arcs[i])) {
-              t = arcs[0], arcs[0] = arcs[i], arcs[i] = t;
-              break;
-            }
-          }
-        }
-
-        return arcs;
-      })
-    };
-  }
-
-  function featureOrCollection(topology, o) {
-    return o.type === "GeometryCollection" ? {
-      type: "FeatureCollection",
-      features: o.geometries.map(function(o) { return feature(topology, o); })
-    } : feature(topology, o);
-  }
-
-  function feature(topology, o) {
-    var f = {
-      type: "Feature",
-      id: o.id,
-      properties: o.properties || {},
-      geometry: object(topology, o)
-    };
-    if (o.id == null) delete f.id;
-    return f;
-  }
-
-  function object(topology, o) {
-    var absolute = transformAbsolute(topology.transform),
-        arcs = topology.arcs;
-
-    function arc(i, points) {
-      if (points.length) points.pop();
-      for (var a = arcs[i < 0 ? ~i : i], k = 0, n = a.length, p; k < n; ++k) {
-        points.push(p = a[k].slice());
-        absolute(p, k);
-      }
-      if (i < 0) reverse(points, n);
-    }
-
-    function point(p) {
-      p = p.slice();
-      absolute(p, 0);
-      return p;
-    }
-
-    function line(arcs) {
-      var points = [];
-      for (var i = 0, n = arcs.length; i < n; ++i) arc(arcs[i], points);
-      if (points.length < 2) points.push(points[0].slice());
-      return points;
-    }
-
-    function ring(arcs) {
-      var points = line(arcs);
-      while (points.length < 4) points.push(points[0].slice());
-      return points;
-    }
-
-    function polygon(arcs) {
-      return arcs.map(ring);
-    }
-
-    function geometry(o) {
-      var t = o.type;
-      return t === "GeometryCollection" ? {type: t, geometries: o.geometries.map(geometry)}
-          : t in geometryType ? {type: t, coordinates: geometryType[t](o)}
-          : null;
-    }
-
-    var geometryType = {
-      Point: function(o) { return point(o.coordinates); },
-      MultiPoint: function(o) { return o.coordinates.map(point); },
-      LineString: function(o) { return line(o.arcs); },
-      MultiLineString: function(o) { return o.arcs.map(line); },
-      Polygon: function(o) { return polygon(o.arcs); },
-      MultiPolygon: function(o) { return o.arcs.map(polygon); }
-    };
-
-    return geometry(o);
-  }
-
-  function reverse(array, n) {
-    var t, j = array.length, i = j - n; while (i < --j) t = array[i], array[i++] = array[j], array[j] = t;
-  }
-
-  function bisect(a, x) {
-    var lo = 0, hi = a.length;
-    while (lo < hi) {
-      var mid = lo + hi >>> 1;
-      if (a[mid] < x) lo = mid + 1;
-      else hi = mid;
-    }
-    return lo;
-  }
-
-  function neighbors(objects) {
-    var indexesByArc = {}, // arc index -> array of object indexes
-        neighbors = objects.map(function() { return []; });
-
-    function line(arcs, i) {
-      arcs.forEach(function(a) {
-        if (a < 0) a = ~a;
-        var o = indexesByArc[a];
-        if (o) o.push(i);
-        else indexesByArc[a] = [i];
-      });
-    }
-
-    function polygon(arcs, i) {
-      arcs.forEach(function(arc) { line(arc, i); });
-    }
-
-    function geometry(o, i) {
-      if (o.type === "GeometryCollection") o.geometries.forEach(function(o) { geometry(o, i); });
-      else if (o.type in geometryType) geometryType[o.type](o.arcs, i);
-    }
-
-    var geometryType = {
-      LineString: line,
-      MultiLineString: polygon,
-      Polygon: polygon,
-      MultiPolygon: function(arcs, i) { arcs.forEach(function(arc) { polygon(arc, i); }); }
-    };
-
-    objects.forEach(geometry);
-
-    for (var i in indexesByArc) {
-      for (var indexes = indexesByArc[i], m = indexes.length, j = 0; j < m; ++j) {
-        for (var k = j + 1; k < m; ++k) {
-          var ij = indexes[j], ik = indexes[k], n;
-          if ((n = neighbors[ij])[i = bisect(n, ik)] !== ik) n.splice(i, 0, ik);
-          if ((n = neighbors[ik])[i = bisect(n, ij)] !== ij) n.splice(i, 0, ij);
-        }
-      }
-    }
-
-    return neighbors;
-  }
-
-  function presimplify(topology, triangleArea) {
-    var absolute = transformAbsolute(topology.transform),
-        relative = transformRelative(topology.transform),
-        heap = minAreaHeap();
-
-    if (!triangleArea) triangleArea = cartesianTriangleArea;
-
-    topology.arcs.forEach(function(arc) {
-      var triangles = [],
-          maxArea = 0,
-          triangle;
-
-      // To store each point’s effective area, we create a new array rather than
-      // extending the passed-in point to workaround a Chrome/V8 bug (getting
-      // stuck in smi mode). For midpoints, the initial effective area of
-      // Infinity will be computed in the next step.
-      for (var i = 0, n = arc.length, p; i < n; ++i) {
-        p = arc[i];
-        absolute(arc[i] = [p[0], p[1], Infinity], i);
-      }
-
-      for (var i = 1, n = arc.length - 1; i < n; ++i) {
-        triangle = arc.slice(i - 1, i + 2);
-        triangle[1][2] = triangleArea(triangle);
-        triangles.push(triangle);
-        heap.push(triangle);
-      }
-
-      for (var i = 0, n = triangles.length; i < n; ++i) {
-        triangle = triangles[i];
-        triangle.previous = triangles[i - 1];
-        triangle.next = triangles[i + 1];
-      }
-
-      while (triangle = heap.pop()) {
-        var previous = triangle.previous,
-            next = triangle.next;
-
-        // If the area of the current point is less than that of the previous point
-        // to be eliminated, use the latter's area instead. This ensures that the
-        // current point cannot be eliminated without eliminating previously-
-        // eliminated points.
-        if (triangle[1][2] < maxArea) triangle[1][2] = maxArea;
-        else maxArea = triangle[1][2];
-
-        if (previous) {
-          previous.next = next;
-          previous[2] = triangle[2];
-          update(previous);
-        }
-
-        if (next) {
-          next.previous = previous;
-          next[0] = triangle[0];
-          update(next);
-        }
-      }
-
-      arc.forEach(relative);
-    });
-
-    function update(triangle) {
-      heap.remove(triangle);
-      triangle[1][2] = triangleArea(triangle);
-      heap.push(triangle);
-    }
-
-    return topology;
-  };
-
-  function cartesianRingArea(ring) {
-    var i = -1,
-        n = ring.length,
-        a,
-        b = ring[n - 1],
-        area = 0;
-
-    while (++i < n) {
-      a = b;
-      b = ring[i];
-      area += a[0] * b[1] - a[1] * b[0];
-    }
-
-    return area * .5;
-  }
-
-  function cartesianTriangleArea(triangle) {
-    var a = triangle[0], b = triangle[1], c = triangle[2];
-    return Math.abs((a[0] - c[0]) * (b[1] - a[1]) - (a[0] - b[0]) * (c[1] - a[1]));
-  }
-
-  function compareArea(a, b) {
-    return a[1][2] - b[1][2];
-  }
-
-  function minAreaHeap() {
-    var heap = {},
-        array = [],
-        size = 0;
-
-    heap.push = function(object) {
-      up(array[object._ = size] = object, size++);
-      return size;
-    };
-
-    heap.pop = function() {
-      if (size <= 0) return;
-      var removed = array[0], object;
-      if (--size > 0) object = array[size], down(array[object._ = 0] = object, 0);
-      return removed;
-    };
-
-    heap.remove = function(removed) {
-      var i = removed._, object;
-      if (array[i] !== removed) return; // invalid request
-      if (i !== --size) object = array[size], (compareArea(object, removed) < 0 ? up : down)(array[object._ = i] = object, i);
-      return i;
-    };
-
-    function up(object, i) {
-      while (i > 0) {
-        var j = ((i + 1) >> 1) - 1,
-            parent = array[j];
-        if (compareArea(object, parent) >= 0) break;
-        array[parent._ = i] = parent;
-        array[object._ = i = j] = object;
-      }
-    }
-
-    function down(object, i) {
-      while (true) {
-        var r = (i + 1) << 1,
-            l = r - 1,
-            j = i,
-            child = array[j];
-        if (l < size && compareArea(array[l], child) < 0) child = array[j = l];
-        if (r < size && compareArea(array[r], child) < 0) child = array[j = r];
-        if (j === i) break;
-        array[child._ = i] = child;
-        array[object._ = i = j] = object;
-      }
-    }
-
-    return heap;
-  }
-
-  function transformAbsolute(transform) {
-    if (!transform) return noop;
-    var x0,
-        y0,
-        kx = transform.scale[0],
-        ky = transform.scale[1],
-        dx = transform.translate[0],
-        dy = transform.translate[1];
-    return function(point, i) {
-      if (!i) x0 = y0 = 0;
-      point[0] = (x0 += point[0]) * kx + dx;
-      point[1] = (y0 += point[1]) * ky + dy;
-    };
-  }
-
-  function transformRelative(transform) {
-    if (!transform) return noop;
-    var x0,
-        y0,
-        kx = transform.scale[0],
-        ky = transform.scale[1],
-        dx = transform.translate[0],
-        dy = transform.translate[1];
-    return function(point, i) {
-      if (!i) x0 = y0 = 0;
-      var x1 = (point[0] - dx) / kx | 0,
-          y1 = (point[1] - dy) / ky | 0;
-      point[0] = x1 - x0;
-      point[1] = y1 - y0;
-      x0 = x1;
-      y0 = y1;
-    };
-  }
-
-  function noop() {}
-
-  if (typeof define === "function" && define.amd) define(topojson);
-  else if (typeof module === "object" && module.exports) module.exports = topojson;
-  else this.topojson = topojson;
-}();
-
-},{}],4:[function(require,module,exports){
 var colorSort;
 
 colorSort = require("../color/sort.coffee");
@@ -10261,7 +9592,7 @@ module.exports = function(a, b, keys, sort, colors, vars, depth) {
 };
 
 
-},{"../color/sort.coffee":20}],5:[function(require,module,exports){
+},{"../color/sort.coffee":18}],3:[function(require,module,exports){
 module.exports = function(arr, value) {
   var constructor;
   if (arr instanceof Array) {
@@ -10273,7 +9604,7 @@ module.exports = function(arr, value) {
 };
 
 
-},{}],6:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 var comparator, fetchSort;
 
 comparator = require("./comparator.coffee");
@@ -10311,7 +9642,7 @@ module.exports = function(arr, keys, sort, colors, vars, depth) {
 };
 
 
-},{"../core/fetch/sort.coffee":26,"./comparator.coffee":4}],7:[function(require,module,exports){
+},{"../core/fetch/sort.coffee":24,"./comparator.coffee":2}],5:[function(require,module,exports){
 module.exports = function(arr, x) {
   if (x === void 0) {
     return arr;
@@ -10334,7 +9665,7 @@ module.exports = function(arr, x) {
 };
 
 
-},{}],8:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 var sheet;
 
 sheet = function(name) {
@@ -10361,11 +9692,11 @@ sheet.tested = {};
 module.exports = sheet;
 
 
-},{}],9:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 // Determines if the current browser is Internet Explorer.
 module.exports = /*@cc_on!@*/false
 
-},{}],10:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 var ie, touch;
 
 ie = require("./ie.js");
@@ -10393,7 +9724,7 @@ if (touch) {
 }
 
 
-},{"./ie.js":9,"./touch.coffee":14}],11:[function(require,module,exports){
+},{"./ie.js":7,"./touch.coffee":12}],9:[function(require,module,exports){
 var prefix;
 
 prefix = function() {
@@ -10418,11 +9749,11 @@ prefix = function() {
 module.exports = prefix;
 
 
-},{}],12:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = d3.select("html").attr("dir") === "rtl";
 
 
-},{}],13:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var scrollbar;
 
 scrollbar = function() {
@@ -10457,11 +9788,11 @@ scrollbar = function() {
 module.exports = scrollbar;
 
 
-},{}],14:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 module.exports = ("ontouchstart" in window) || window.DocumentTouch && document instanceof DocumentTouch ? true : false;
 
 
-},{}],15:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = function(color) {
   var hsl;
   hsl = d3.hsl(color);
@@ -10475,7 +9806,7 @@ module.exports = function(color) {
 };
 
 
-},{}],16:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 module.exports = function(color, increment) {
   var c;
   if (increment === void 0) {
@@ -10489,7 +9820,7 @@ module.exports = function(color, increment) {
 };
 
 
-},{}],17:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 module.exports = function(c1, c2, o1, o2) {
   var b, g, r;
   if (!o1) {
@@ -10507,7 +9838,7 @@ module.exports = function(c1, c2, o1, o2) {
 };
 
 
-},{}],18:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 var defaultScale;
 
 defaultScale = require("./scale.coffee");
@@ -10520,11 +9851,11 @@ module.exports = function(x, scale) {
 };
 
 
-},{"./scale.coffee":19}],19:[function(require,module,exports){
+},{"./scale.coffee":17}],17:[function(require,module,exports){
 module.exports = d3.scale.ordinal().range(["#b22200", "#EACE3F", "#282F6B", "#B35C1E", "#224F20", "#5F487C", "#759143", "#419391", "#993F88", "#e89c89", "#ffee8d", "#afd5e8", "#f7ba77", "#a5c697", "#c5b5e5", "#d1d392", "#bbefd0", "#e099cf"]);
 
 
-},{}],20:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 module.exports = function(a, b) {
   var aHSL, bHSL;
   aHSL = d3.hsl(a);
@@ -10539,7 +9870,7 @@ module.exports = function(a, b) {
 };
 
 
-},{}],21:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 module.exports = function(color) {
   var b, g, r, rgbColor, yiq;
   rgbColor = d3.rgb(color);
@@ -10555,7 +9886,7 @@ module.exports = function(color) {
 };
 
 
-},{}],22:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 module.exports = function(color) {
   var blackColors, testColor, userBlack;
   color = color + "";
@@ -10573,7 +9904,7 @@ module.exports = function(color) {
 };
 
 
-},{}],23:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 var ie, print, wiki;
 
 ie = require("../../client/ie.js");
@@ -10680,7 +10011,7 @@ print.wiki = function(url) {
 module.exports = print;
 
 
-},{"../../client/ie.js":9,"./wiki.coffee":24}],24:[function(require,module,exports){
+},{"../../client/ie.js":7,"./wiki.coffee":22}],22:[function(require,module,exports){
 module.exports = {
   active: "Visualizations#active",
   aggs: "Visualizations#aggs",
@@ -10744,7 +10075,7 @@ module.exports = {
 };
 
 
-},{}],25:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var fetchValue, getColor, getRandom, randomColor, uniques, validColor, validObject;
 
 fetchValue = require("./value.coffee");
@@ -10825,7 +10156,7 @@ getRandom = function(vars, c, level) {
 };
 
 
-},{"../../color/random.coffee":18,"../../color/validate.coffee":22,"../../object/validate.coffee":52,"../../util/uniques.coffee":87,"./value.coffee":28}],26:[function(require,module,exports){
+},{"../../color/random.coffee":16,"../../color/validate.coffee":20,"../../object/validate.coffee":47,"../../util/uniques.coffee":82,"./value.coffee":26}],24:[function(require,module,exports){
 var fetchColor, fetchText, fetchValue;
 
 fetchValue = require("./value.coffee");
@@ -10869,7 +10200,7 @@ module.exports = function(vars, d, keys, colors, depth) {
 };
 
 
-},{"./color.coffee":25,"./text.js":27,"./value.coffee":28}],27:[function(require,module,exports){
+},{"./color.coffee":23,"./text.js":25,"./value.coffee":26}],25:[function(require,module,exports){
 var fetchValue = require("./value.coffee"),
     validObject = require("../../object/validate.coffee"),
     uniques     = require("../../util/uniques.coffee");
@@ -10951,7 +10282,7 @@ module.exports = function(vars, obj, depth) {
 
 };
 
-},{"../../object/validate.coffee":52,"../../util/uniques.coffee":87,"./value.coffee":28}],28:[function(require,module,exports){
+},{"../../object/validate.coffee":47,"../../util/uniques.coffee":82,"./value.coffee":26}],26:[function(require,module,exports){
 var cacheInit, checkAttrs, checkData, fetch, fetchArray, filterArray, find, uniqueValues, validObject, valueParse;
 
 validObject = require("../../object/validate.coffee");
@@ -11169,7 +10500,7 @@ fetch = function(vars, node, variable, depth) {
 module.exports = fetch;
 
 
-},{"../../object/validate.coffee":52,"../../util/uniques.coffee":87}],29:[function(require,module,exports){
+},{"../../object/validate.coffee":47,"../../util/uniques.coffee":82}],27:[function(require,module,exports){
 module.exports = function(type) {
   var attrs, styles, tester;
   if (["div", "svg"].indexOf(type) < 0) {
@@ -11191,7 +10522,7 @@ module.exports = function(type) {
 };
 
 
-},{}],30:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 module.exports = {
   dev: {
     accepted: "{0} is not an accepted value for {1}, please use one of the following: {2}.",
@@ -11328,7 +10659,7 @@ module.exports = {
 };
 
 
-},{}],31:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -11482,7 +10813,7 @@ module.exports = {
     ]
 }
 
-},{}],32:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -11645,7 +10976,7 @@ module.exports = {
     ]
 }
 
-},{}],33:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -11794,7 +11125,7 @@ module.exports = {
     ]
 }
 
-},{}],34:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -11958,7 +11289,7 @@ module.exports = {
     ]
 }
 
-},{}],35:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -12122,7 +11453,7 @@ module.exports = {
     ]
 }
 
-},{}],36:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ",",
@@ -12267,7 +11598,7 @@ module.exports = {
     ]
 }
 
-},{}],37:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 module.exports = {
     "format": {
         "decimal": ".",
@@ -12416,7 +11747,7 @@ module.exports = {
     ]
 }
 
-},{}],38:[function(require,module,exports){
+},{}],36:[function(require,module,exports){
 module.exports = {
   en_US: require("./languages/en_US.coffee"),
   es_ES: require("./languages/es_ES.js"),
@@ -12429,7 +11760,7 @@ module.exports = {
 };
 
 
-},{"./languages/en_US.coffee":30,"./languages/es_ES.js":31,"./languages/fr_FR.js":32,"./languages/mk_MK.js":33,"./languages/pt_BR.js":34,"./languages/pt_PT.js":35,"./languages/ru_RU.js":36,"./languages/zh_CN.js":37}],39:[function(require,module,exports){
+},{"./languages/en_US.coffee":28,"./languages/es_ES.js":29,"./languages/fr_FR.js":30,"./languages/mk_MK.js":31,"./languages/pt_BR.js":32,"./languages/pt_PT.js":33,"./languages/ru_RU.js":34,"./languages/zh_CN.js":35}],37:[function(require,module,exports){
 var checkObject, copy, createFunction, initialize, print, process, setMethod, stringFormat, validObject;
 
 copy = require("../../util/copy.coffee");
@@ -12602,7 +11933,7 @@ checkObject = function(vars, method, object, key, value) {
 };
 
 
-},{"../../object/validate.coffee":52,"../../string/format.js":53,"../../util/copy.coffee":84,"../console/print.coffee":23,"./process/detect.coffee":40,"./set.coffee":42}],40:[function(require,module,exports){
+},{"../../object/validate.coffee":47,"../../string/format.js":48,"../../util/copy.coffee":79,"../console/print.coffee":21,"./process/detect.coffee":38,"./set.coffee":40}],38:[function(require,module,exports){
 var copy, update;
 
 copy = require("../../../util/copy.coffee");
@@ -12622,7 +11953,7 @@ module.exports = function(vars, object, value) {
 };
 
 
-},{"../../../array/update.coffee":7,"../../../util/copy.coffee":84}],41:[function(require,module,exports){
+},{"../../../array/update.coffee":5,"../../../util/copy.coffee":79}],39:[function(require,module,exports){
 var contains, format, list, print;
 
 contains = require("../../array/contains.coffee");
@@ -12674,7 +12005,7 @@ module.exports = function(vars, accepted, value, method, text) {
 };
 
 
-},{"../../array/contains.coffee":5,"../../string/format.js":53,"../../string/list.coffee":54,"../console/print.coffee":23}],42:[function(require,module,exports){
+},{"../../array/contains.coffee":3,"../../string/format.js":48,"../../string/list.coffee":49,"../console/print.coffee":21}],40:[function(require,module,exports){
 var copy, d3selection, mergeObject, print, process, rejected, stringFormat, updateArray, validObject;
 
 copy = require("../../util/copy.coffee");
@@ -12829,7 +12160,7 @@ module.exports = function(vars, method, object, key, value) {
 };
 
 
-},{"../../array/update.coffee":7,"../../object/merge.coffee":51,"../../object/validate.coffee":52,"../../string/format.js":53,"../../util/copy.coffee":84,"../../util/d3selection.coffee":85,"../console/print.coffee":23,"./process/detect.coffee":40,"./rejected.coffee":41}],43:[function(require,module,exports){
+},{"../../array/update.coffee":5,"../../object/merge.coffee":46,"../../object/validate.coffee":47,"../../string/format.js":48,"../../util/copy.coffee":79,"../../util/d3selection.coffee":80,"../console/print.coffee":21,"./process/detect.coffee":38,"./rejected.coffee":39}],41:[function(require,module,exports){
 var fontTester;
 
 fontTester = require("../core/font/tester.coffee");
@@ -12900,7 +12231,7 @@ module.exports = function(words, style, opts) {
 };
 
 
-},{"../core/font/tester.coffee":29}],44:[function(require,module,exports){
+},{"../core/font/tester.coffee":27}],42:[function(require,module,exports){
 var fontTester, validate;
 
 fontTester = require("../core/font/tester.coffee");
@@ -12958,535 +12289,7 @@ validate.complete = {};
 module.exports = validate;
 
 
-},{"../core/font/tester.coffee":29}],45:[function(require,module,exports){
-var intersectPoints, lineIntersection, pointInPoly, pointInSegmentBox, polyInsidePoly, rayIntersectsSegment, rotatePoint, rotatePoly, segmentsIntersect, simplify, squaredDist;
-
-simplify = require("simplify-js");
-
-module.exports = function(poly, options) {
-  var aRatio, aRatios, angle, angleRad, angleStep, angles, area, aspectRatioStep, aspectRatios, bBox, boxHeight, boxWidth, centroid, events, height, i, insidePoly, j, k, l, left, len, len1, len2, len3, m, maxArea, maxAspectRatio, maxHeight, maxRect, maxWidth, maxx, maxy, minAspectRatio, minSqDistH, minSqDistW, minx, miny, modifOrigins, origOrigin, origin, origins, p, p1H, p1W, p2H, p2W, rectPoly, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, right, rndPoint, rndX, rndY, tempPoly, tolerance, width, widthStep, x0, y0;
-  if (poly.length < 3) {
-    return null;
-  }
-  events = [];
-  aspectRatioStep = 0.5;
-  angleStep = 5;
-  if (options == null) {
-    options = {};
-  }
-  if (options.maxAspectRatio == null) {
-    options.maxAspectRatio = 15;
-  }
-  if (options.minWidth == null) {
-    options.minWidth = 0;
-  }
-  if (options.minHeight == null) {
-    options.minHeight = 0;
-  }
-  if (options.tolerance == null) {
-    options.tolerance = 0.02;
-  }
-  if (options.nTries == null) {
-    options.nTries = 20;
-  }
-  if (options.angle != null) {
-    if (options.angle instanceof Array) {
-      angles = options.angle;
-    } else if (typeof options.angle === 'number') {
-      angles = [options.angle];
-    } else if (typeof options.angle === 'string' && !isNaN(options.angle)) {
-      angles = [Number(options.angle)];
-    }
-  }
-  if (angles == null) {
-    angles = d3.range(-90, 90 + angleStep, angleStep);
-  }
-  if (options.aspectRatio != null) {
-    if (options.aspectRatio instanceof Array) {
-      aspectRatios = options.aspectRatio;
-    } else if (typeof options.aspectRatio === 'number') {
-      aspectRatios = [options.aspectRatio];
-    } else if (typeof options.aspectRatio === 'string' && !isNaN(options.aspectRatio)) {
-      aspectRatios = [Number(options.aspectRatio)];
-    }
-  }
-  if (options.origin != null) {
-    if (options.origin instanceof Array) {
-      if (options.origin[0] instanceof Array) {
-        origins = options.origin;
-      } else {
-        origins = [options.origin];
-      }
-    }
-  }
-  area = Math.abs(d3.geom.polygon(poly).area());
-  if (area === 0) {
-    return null;
-  }
-  ref = d3.extent(poly, function(d) {
-    return d[0];
-  }), minx = ref[0], maxx = ref[1];
-  ref1 = d3.extent(poly, function(d) {
-    return d[1];
-  }), miny = ref1[0], maxy = ref1[1];
-  tolerance = Math.min(maxx - minx, maxy - miny) * options.tolerance;
-  tempPoly = (function() {
-    var j, len, results;
-    results = [];
-    for (j = 0, len = poly.length; j < len; j++) {
-      p = poly[j];
-      results.push({
-        x: p[0],
-        y: p[1]
-      });
-    }
-    return results;
-  })();
-  if (tolerance > 0) {
-    tempPoly = simplify(tempPoly, tolerance);
-    poly = (function() {
-      var j, len, results;
-      results = [];
-      for (j = 0, len = tempPoly.length; j < len; j++) {
-        p = tempPoly[j];
-        results.push([p.x, p.y]);
-      }
-      return results;
-    })();
-  }
-  if (options.vdebug) {
-    events.push({
-      type: 'simplify',
-      poly: poly
-    });
-  }
-  ref2 = d3.extent(poly, function(d) {
-    return d[0];
-  }), minx = ref2[0], maxx = ref2[1];
-  ref3 = d3.extent(poly, function(d) {
-    return d[1];
-  }), miny = ref3[0], maxy = ref3[1];
-  bBox = [[minx, miny], [maxx, miny], [maxx, maxy], [minx, maxy]];
-  ref4 = [maxx - minx, maxy - miny], boxWidth = ref4[0], boxHeight = ref4[1];
-  widthStep = Math.min(boxWidth, boxHeight) / 50;
-  if (origins == null) {
-    origins = [];
-    centroid = d3.geom.polygon(poly).centroid();
-    if (pointInPoly(centroid, poly)) {
-      origins.push(centroid);
-    }
-    while (origins.length < options.nTries) {
-      rndX = Math.random() * boxWidth + minx;
-      rndY = Math.random() * boxHeight + miny;
-      rndPoint = [rndX, rndY];
-      if (pointInPoly(rndPoint, poly)) {
-        origins.push(rndPoint);
-      }
-    }
-  }
-  if (options.vdebug) {
-    events.push({
-      type: 'origins',
-      points: origins
-    });
-  }
-  maxArea = 0;
-  maxRect = null;
-  for (j = 0, len = angles.length; j < len; j++) {
-    angle = angles[j];
-    angleRad = -angle * Math.PI / 180;
-    if (options.vdebug) {
-      events.push({
-        type: 'angle',
-        angle: angle
-      });
-    }
-    for (i = k = 0, len1 = origins.length; k < len1; i = ++k) {
-      origOrigin = origins[i];
-      ref5 = intersectPoints(poly, origOrigin, angleRad), p1W = ref5[0], p2W = ref5[1];
-      ref6 = intersectPoints(poly, origOrigin, angleRad + Math.PI / 2), p1H = ref6[0], p2H = ref6[1];
-      modifOrigins = [];
-      if ((p1W != null) && (p2W != null)) {
-        modifOrigins.push([(p1W[0] + p2W[0]) / 2, (p1W[1] + p2W[1]) / 2]);
-      }
-      if ((p1H != null) && (p2H != null)) {
-        modifOrigins.push([(p1H[0] + p2H[0]) / 2, (p1H[1] + p2H[1]) / 2]);
-      }
-      if (options.vdebug) {
-        events.push({
-          type: 'modifOrigin',
-          idx: i,
-          p1W: p1W,
-          p2W: p2W,
-          p1H: p1H,
-          p2H: p2H,
-          modifOrigins: modifOrigins
-        });
-      }
-      for (l = 0, len2 = modifOrigins.length; l < len2; l++) {
-        origin = modifOrigins[l];
-        if (options.vdebug) {
-          events.push({
-            type: 'origin',
-            cx: origin[0],
-            cy: origin[1]
-          });
-        }
-        ref7 = intersectPoints(poly, origin, angleRad), p1W = ref7[0], p2W = ref7[1];
-        if (p1W === null || p2W === null) {
-          continue;
-        }
-        minSqDistW = Math.min(squaredDist(origin, p1W), squaredDist(origin, p2W));
-        maxWidth = 2 * Math.sqrt(minSqDistW);
-        ref8 = intersectPoints(poly, origin, angleRad + Math.PI / 2), p1H = ref8[0], p2H = ref8[1];
-        if (p1H === null || p2H === null) {
-          continue;
-        }
-        minSqDistH = Math.min(squaredDist(origin, p1H), squaredDist(origin, p2H));
-        maxHeight = 2 * Math.sqrt(minSqDistH);
-        if (maxWidth * maxHeight < maxArea) {
-          continue;
-        }
-        if (aspectRatios != null) {
-          aRatios = aspectRatios;
-        } else {
-          minAspectRatio = Math.max(1, options.minWidth / maxHeight, maxArea / (maxHeight * maxHeight));
-          maxAspectRatio = Math.min(options.maxAspectRatio, maxWidth / options.minHeight, (maxWidth * maxWidth) / maxArea);
-          aRatios = d3.range(minAspectRatio, maxAspectRatio + aspectRatioStep, aspectRatioStep);
-        }
-        for (m = 0, len3 = aRatios.length; m < len3; m++) {
-          aRatio = aRatios[m];
-          left = Math.max(options.minWidth, Math.sqrt(maxArea * aRatio));
-          right = Math.min(maxWidth, maxHeight * aRatio);
-          if (right * maxHeight < maxArea) {
-            continue;
-          }
-          if ((right - left) >= widthStep) {
-            if (options.vdebug) {
-              events.push({
-                type: 'aRatio',
-                aRatio: aRatio
-              });
-            }
-          }
-          while ((right - left) >= widthStep) {
-            width = (left + right) / 2;
-            height = width / aRatio;
-            x0 = origin[0], y0 = origin[1];
-            rectPoly = [[x0 - width / 2, y0 - height / 2], [x0 + width / 2, y0 - height / 2], [x0 + width / 2, y0 + height / 2], [x0 - width / 2, y0 + height / 2]];
-            rectPoly = rotatePoly(rectPoly, angleRad, origin);
-            if (polyInsidePoly(rectPoly, poly)) {
-              insidePoly = true;
-              maxArea = width * height;
-              maxRect = {
-                cx: x0,
-                cy: y0,
-                width: width,
-                height: height,
-                angle: angle
-              };
-              left = width;
-            } else {
-              insidePoly = false;
-              right = width;
-            }
-            if (options.vdebug) {
-              events.push({
-                type: 'rectangle',
-                cx: x0,
-                cy: y0,
-                width: width,
-                height: height,
-                areaFraction: (width * height) / area,
-                angle: angle,
-                insidePoly: insidePoly
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-  return [maxRect, maxArea, events];
-};
-
-squaredDist = function(a, b) {
-  var deltax, deltay;
-  deltax = b[0] - a[0];
-  deltay = b[1] - a[1];
-  return deltax * deltax + deltay * deltay;
-};
-
-rayIntersectsSegment = function(p, p1, p2) {
-  var a, b, mAB, mAP, ref;
-  ref = p1[1] < p2[1] ? [p1, p2] : [p2, p1], a = ref[0], b = ref[1];
-  if (p[1] === b[1] || p[1] === a[1]) {
-    p[1] += Number.MIN_VALUE;
-  }
-  if (p[1] > b[1] || p[1] < a[1]) {
-    return false;
-  } else if (p[0] > a[0] && p[0] > b[0]) {
-    return false;
-  } else if (p[0] < a[0] && p[0] < b[0]) {
-    return true;
-  } else {
-    mAB = (b[1] - a[1]) / (b[0] - a[0]);
-    mAP = (p[1] - a[1]) / (p[0] - a[0]);
-    return mAP > mAB;
-  }
-};
-
-pointInPoly = function(p, poly) {
-  var a, b, c, i, n;
-  i = -1;
-  n = poly.length;
-  b = poly[n - 1];
-  c = 0;
-  while (++i < n) {
-    a = b;
-    b = poly[i];
-    if (rayIntersectsSegment(p, a, b)) {
-      c++;
-    }
-  }
-  return c % 2 !== 0;
-};
-
-pointInSegmentBox = function(p, p1, q1) {
-  var eps, px, py;
-  eps = 1e-9;
-  px = p[0], py = p[1];
-  if (px < Math.min(p1[0], q1[0]) - eps || px > Math.max(p1[0], q1[0]) + eps || py < Math.min(p1[1], q1[1]) - eps || py > Math.max(p1[1], q1[1]) + eps) {
-    return false;
-  }
-  return true;
-};
-
-lineIntersection = function(p1, q1, p2, q2) {
-  var cross1, cross2, denom, dx1, dx2, dy1, dy2, eps, px, py;
-  eps = 1e-9;
-  dx1 = p1[0] - q1[0];
-  dy1 = p1[1] - q1[1];
-  dx2 = p2[0] - q2[0];
-  dy2 = p2[1] - q2[1];
-  denom = dx1 * dy2 - dy1 * dx2;
-  if (Math.abs(denom) < eps) {
-    return null;
-  }
-  cross1 = p1[0] * q1[1] - p1[1] * q1[0];
-  cross2 = p2[0] * q2[1] - p2[1] * q2[0];
-  px = (cross1 * dx2 - cross2 * dx1) / denom;
-  py = (cross1 * dy2 - cross2 * dy1) / denom;
-  return [px, py];
-};
-
-segmentsIntersect = function(p1, q1, p2, q2) {
-  var p;
-  p = lineIntersection(p1, q1, p2, q2);
-  if (p == null) {
-    return false;
-  }
-  return pointInSegmentBox(p, p1, q1) && pointInSegmentBox(p, p2, q2);
-};
-
-polyInsidePoly = function(polyA, polyB) {
-  var aA, aB, bA, bB, iA, iB, nA, nB;
-  iA = -1;
-  nA = polyA.length;
-  nB = polyB.length;
-  bA = polyA[nA - 1];
-  while (++iA < nA) {
-    aA = bA;
-    bA = polyA[iA];
-    iB = -1;
-    bB = polyB[nB - 1];
-    while (++iB < nB) {
-      aB = bB;
-      bB = polyB[iB];
-      if (segmentsIntersect(aA, bA, aB, bB)) {
-        return false;
-      }
-    }
-  }
-  return pointInPoly(polyA[0], polyB);
-};
-
-rotatePoint = function(p, alpha, origin) {
-  var cosAlpha, sinAlpha, xshifted, yshifted;
-  if (origin == null) {
-    origin = [0, 0];
-  }
-  xshifted = p[0] - origin[0];
-  yshifted = p[1] - origin[1];
-  cosAlpha = Math.cos(alpha);
-  sinAlpha = Math.sin(alpha);
-  return [cosAlpha * xshifted - sinAlpha * yshifted + origin[0], sinAlpha * xshifted + cosAlpha * yshifted + origin[1]];
-};
-
-rotatePoly = function(poly, alpha, origin) {
-  var j, len, point, results;
-  results = [];
-  for (j = 0, len = poly.length; j < len; j++) {
-    point = poly[j];
-    results.push(rotatePoint(point, alpha, origin));
-  }
-  return results;
-};
-
-intersectPoints = function(poly, origin, alpha) {
-  var a, b, closestPointLeft, closestPointRight, eps, i, idx, minSqDistLeft, minSqDistRight, n, p, shiftedOrigin, sqDist, x0, y0;
-  eps = 1e-9;
-  origin = [origin[0] + eps * Math.cos(alpha), origin[1] + eps * Math.sin(alpha)];
-  x0 = origin[0], y0 = origin[1];
-  shiftedOrigin = [x0 + Math.cos(alpha), y0 + Math.sin(alpha)];
-  idx = 0;
-  if (Math.abs(shiftedOrigin[0] - x0) < eps) {
-    idx = 1;
-  }
-  i = -1;
-  n = poly.length;
-  b = poly[n - 1];
-  minSqDistLeft = Number.MAX_VALUE;
-  minSqDistRight = Number.MAX_VALUE;
-  closestPointLeft = null;
-  closestPointRight = null;
-  while (++i < n) {
-    a = b;
-    b = poly[i];
-    p = lineIntersection(origin, shiftedOrigin, a, b);
-    if ((p != null) && pointInSegmentBox(p, a, b)) {
-      sqDist = squaredDist(origin, p);
-      if (p[idx] < origin[idx]) {
-        if (sqDist < minSqDistLeft) {
-          minSqDistLeft = sqDist;
-          closestPointLeft = p;
-        }
-      } else if (p[idx] > origin[idx]) {
-        if (sqDist < minSqDistRight) {
-          minSqDistRight = sqDist;
-          closestPointRight = p;
-        }
-      }
-    }
-  }
-  return [closestPointLeft, closestPointRight];
-};
-
-
-},{"simplify-js":2}],46:[function(require,module,exports){
-module.exports = function(radians, distance, shape) {
-  var adjacentLegLength, coords, diagonal, oppositeLegLength;
-  coords = {
-    x: 0,
-    y: 0
-  };
-  if (radians < 0) {
-    radians = Math.PI * 2 + radians;
-  }
-  if (shape === "square") {
-    diagonal = 45 * (Math.PI / 180);
-    if (radians <= Math.PI) {
-      if (radians < (Math.PI / 2)) {
-        if (radians < diagonal) {
-          coords.x += distance;
-          oppositeLegLength = Math.tan(radians) * distance;
-          coords.y += oppositeLegLength;
-        } else {
-          coords.y += distance;
-          adjacentLegLength = distance / Math.tan(radians);
-          coords.x += adjacentLegLength;
-        }
-      } else {
-        if (radians < (Math.PI - diagonal)) {
-          coords.y += distance;
-          adjacentLegLength = distance / Math.tan(Math.PI - radians);
-          coords.x -= adjacentLegLength;
-        } else {
-          coords.x -= distance;
-          oppositeLegLength = Math.tan(Math.PI - radians) * distance;
-          coords.y += oppositeLegLength;
-        }
-      }
-    } else {
-      if (radians < (3 * Math.PI / 2)) {
-        if (radians < (diagonal + Math.PI)) {
-          coords.x -= distance;
-          oppositeLegLength = Math.tan(radians - Math.PI) * distance;
-          coords.y -= oppositeLegLength;
-        } else {
-          coords.y -= distance;
-          adjacentLegLength = distance / Math.tan(radians - Math.PI);
-          coords.x -= adjacentLegLength;
-        }
-      } else {
-        if (radians < (2 * Math.PI - diagonal)) {
-          coords.y -= distance;
-          adjacentLegLength = distance / Math.tan(2 * Math.PI - radians);
-          coords.x += adjacentLegLength;
-        } else {
-          coords.x += distance;
-          oppositeLegLength = Math.tan(2 * Math.PI - radians) * distance;
-          coords.y -= oppositeLegLength;
-        }
-      }
-    }
-  } else {
-    coords.x += distance * Math.cos(radians);
-    coords.y += distance * Math.sin(radians);
-  }
-  return coords;
-};
-
-
-},{}],47:[function(require,module,exports){
-var offset;
-
-offset = require("../geom/offset.coffee");
-
-module.exports = function(path) {
-  var angle, i, j, last, len, length, o, obtuse, p, poly, prev, radius, segments, start, step, width;
-  if (!path) {
-    return [];
-  }
-  path = path.slice(1).slice(0, -1).split(/L|A/);
-  poly = [];
-  for (j = 0, len = path.length; j < len; j++) {
-    p = path[j];
-    p = p.split(" ");
-    if (p.length === 1) {
-      poly.push(p[0].split(",").map(function(d) {
-        return parseFloat(d);
-      }));
-    } else {
-      prev = poly[poly.length - 1];
-      last = p.pop().split(",").map(function(d) {
-        return parseFloat(d);
-      });
-      radius = parseFloat(p.shift().split(",")[0]);
-      width = Math.sqrt(Math.pow(last[0] - prev[0], 2) + Math.pow(last[1] - prev[1], 2));
-      angle = Math.acos((radius * radius + radius * radius - width * width) / (2 * radius * radius));
-      obtuse = p[1].split(",")[0] === "1";
-      if (obtuse) {
-        angle = Math.PI * 2 - angle;
-      }
-      length = angle / (Math.PI * 2) * (radius * Math.PI * 2);
-      segments = length / 5;
-      start = Math.atan2(-prev[1], -prev[0]) - Math.PI;
-      step = angle / segments;
-      i = step;
-      while (i < angle) {
-        o = offset(start + i, radius);
-        poly.push([o.x, o.y]);
-        i += step;
-      }
-      poly.push(last);
-    }
-  }
-  return poly;
-};
-
-
-},{"../geom/offset.coffee":46}],48:[function(require,module,exports){
+},{"../core/font/tester.coffee":27}],43:[function(require,module,exports){
 
 /**
  * @class d3plus
@@ -13591,20 +12394,6 @@ d3plus.font = {
 
 
 /**
- * Utilities related to geometric algorithms.
- * @class d3plus.geom
- * @for d3plus
- * @static
- */
-
-d3plus.geom = {
-  largestRect: require("./geom/largestRect.coffee"),
-  offset: require("./geom/offset.coffee"),
-  path2poly: require("./geom/path2poly.coffee")
-};
-
-
-/**
  * Utilities that process numbers.
  * @class d3plus.number
  * @for d3plus
@@ -13679,13 +12468,11 @@ if (stylesheet("d3plus.css")) {
 }
 
 
-},{"./array/comparator.coffee":4,"./array/contains.coffee":5,"./array/sort.coffee":6,"./array/update.coffee":7,"./client/css.coffee":8,"./client/ie.js":9,"./client/pointer.coffee":10,"./client/prefix.coffee":11,"./client/rtl.coffee":12,"./client/scrollbar.coffee":13,"./client/touch.coffee":14,"./color/legible.coffee":15,"./color/lighter.coffee":16,"./color/mix.coffee":17,"./color/random.coffee":18,"./color/scale.coffee":19,"./color/sort.coffee":20,"./color/text.coffee":21,"./color/validate.coffee":22,"./core/console/print.coffee":23,"./font/sizes.coffee":43,"./font/validate.coffee":44,"./geom/largestRect.coffee":45,"./geom/offset.coffee":46,"./geom/path2poly.coffee":47,"./number/format.coffee":50,"./object/merge.coffee":51,"./object/validate.coffee":52,"./string/format.js":53,"./string/list.coffee":54,"./string/strip.js":55,"./string/title.coffee":56,"./textwrap/textwrap.coffee":80,"./util/buckets.coffee":81,"./util/child.coffee":82,"./util/closest.coffee":83,"./util/copy.coffee":84,"./util/d3selection.coffee":85,"./util/dataURL.coffee":86,"./util/uniques.coffee":87}],49:[function(require,module,exports){
+},{"./array/comparator.coffee":2,"./array/contains.coffee":3,"./array/sort.coffee":4,"./array/update.coffee":5,"./client/css.coffee":6,"./client/ie.js":7,"./client/pointer.coffee":8,"./client/prefix.coffee":9,"./client/rtl.coffee":10,"./client/scrollbar.coffee":11,"./client/touch.coffee":12,"./color/legible.coffee":13,"./color/lighter.coffee":14,"./color/mix.coffee":15,"./color/random.coffee":16,"./color/scale.coffee":17,"./color/sort.coffee":18,"./color/text.coffee":19,"./color/validate.coffee":20,"./core/console/print.coffee":21,"./font/sizes.coffee":41,"./font/validate.coffee":42,"./number/format.coffee":45,"./object/merge.coffee":46,"./object/validate.coffee":47,"./string/format.js":48,"./string/list.coffee":49,"./string/strip.js":50,"./string/title.coffee":51,"./textwrap/textwrap.coffee":75,"./util/buckets.coffee":76,"./util/child.coffee":77,"./util/closest.coffee":78,"./util/copy.coffee":79,"./util/d3selection.coffee":80,"./util/dataURL.coffee":81,"./util/uniques.coffee":82}],44:[function(require,module,exports){
 window.d3 = require("d3");
 
-window.topojson = require("topojson");
 
-
-},{"d3":1,"topojson":3}],50:[function(require,module,exports){
+},{"d3":1}],45:[function(require,module,exports){
 var defaultLocale;
 
 defaultLocale = require("../core/locale/languages/en_US.coffee");
@@ -13765,7 +12552,7 @@ module.exports = function(number, opts) {
 };
 
 
-},{"../core/locale/languages/en_US.coffee":30}],51:[function(require,module,exports){
+},{"../core/locale/languages/en_US.coffee":28}],46:[function(require,module,exports){
 var d3selection, validate;
 
 d3selection = require("../util/d3selection.coffee");
@@ -13817,7 +12604,7 @@ module.exports = function(obj1, obj2) {
 };
 
 
-},{"../util/d3selection.coffee":85,"./validate.coffee":52}],52:[function(require,module,exports){
+},{"../util/d3selection.coffee":80,"./validate.coffee":47}],47:[function(require,module,exports){
 
 /**
  * This function returns true if the variable passed is a literal javascript keyed Object. It's a small, simple function, but it catches some edge-cases that can throw off your code (such as Arrays and `null`).
@@ -13831,7 +12618,7 @@ module.exports = function(obj) {
 };
 
 
-},{}],53:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // Formats a string similar to Python's "format"
 //------------------------------------------------------------------------------
@@ -13862,7 +12649,7 @@ module.exports = function() {
 
 }
 
-},{}],54:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 var format, locale;
 
 format = require("./format.js");
@@ -13898,7 +12685,7 @@ module.exports = function(list, andText, max, moreText) {
 };
 
 
-},{"../core/locale/languages/en_US.coffee":30,"./format.js":53}],55:[function(require,module,exports){
+},{"../core/locale/languages/en_US.coffee":28,"./format.js":48}],50:[function(require,module,exports){
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 // Removes all non ASCII characters
 //------------------------------------------------------------------------------
@@ -13950,7 +12737,7 @@ module.exports = function(str) {
 
 };
 
-},{}],56:[function(require,module,exports){
+},{}],51:[function(require,module,exports){
 var defaultLocale;
 
 defaultLocale = require("../core/locale/languages/en_US.coffee");
@@ -13996,7 +12783,7 @@ module.exports = function(text, opts) {
 };
 
 
-},{"../core/locale/languages/en_US.coffee":30}],57:[function(require,module,exports){
+},{"../core/locale/languages/en_US.coffee":28}],52:[function(require,module,exports){
 var foreign, tspan;
 
 foreign = require("./foreign.coffee");
@@ -14012,7 +12799,7 @@ module.exports = function(vars) {
 };
 
 
-},{"./foreign.coffee":58,"./tspan.coffee":61}],58:[function(require,module,exports){
+},{"./foreign.coffee":53,"./tspan.coffee":56}],53:[function(require,module,exports){
 module.exports = function(vars) {
   var anchor, color, family, opacity, text;
   text = vars.container.value;
@@ -14025,7 +12812,7 @@ module.exports = function(vars) {
 };
 
 
-},{}],59:[function(require,module,exports){
+},{}],54:[function(require,module,exports){
 module.exports = function(vars) {
   var diff, elem, height, prev, radius, shape, size, width, x, y;
   elem = vars.container.value;
@@ -14118,7 +12905,7 @@ module.exports = function(vars) {
 };
 
 
-},{}],60:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 module.exports = function(vars) {
   var text;
   if (!vars.text.value) {
@@ -14147,7 +12934,7 @@ module.exports = function(vars) {
 };
 
 
-},{}],61:[function(require,module,exports){
+},{}],56:[function(require,module,exports){
 var rtl;
 
 rtl = require("../../client/rtl.coffee");
@@ -14340,7 +13127,7 @@ module.exports = function(vars) {
 };
 
 
-},{"../../client/rtl.coffee":12}],62:[function(require,module,exports){
+},{"../../client/rtl.coffee":10}],57:[function(require,module,exports){
 var flow, fontSizes, resize, wrap;
 
 flow = require("./flow.coffee");
@@ -14421,7 +13208,7 @@ resize = function(vars) {
 };
 
 
-},{"../../font/sizes.coffee":43,"./flow.coffee":57}],63:[function(require,module,exports){
+},{"../../font/sizes.coffee":41,"./flow.coffee":52}],58:[function(require,module,exports){
 module.exports = {
   accepted: [false, "start", "middle", "end", "left", "center", "right"],
   process: function(value) {
@@ -14436,7 +13223,7 @@ module.exports = {
 };
 
 
-},{}],64:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 module.exports = {
   accepted: [Object],
   objectAccess: false,
@@ -14454,7 +13241,7 @@ module.exports = {
 };
 
 
-},{}],65:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 var d3selection;
 
 d3selection = require("../../util/d3selection.coffee");
@@ -14478,14 +13265,14 @@ module.exports = {
 };
 
 
-},{"../../util/d3selection.coffee":85}],66:[function(require,module,exports){
+},{"../../util/d3selection.coffee":80}],61:[function(require,module,exports){
 module.exports = {
   accepted: [Boolean],
   value: false
 };
 
 
-},{}],67:[function(require,module,exports){
+},{}],62:[function(require,module,exports){
 var print, stringFormat;
 
 print = require("../../core/console/print.coffee");
@@ -14517,7 +13304,7 @@ module.exports = {
 };
 
 
-},{"../../core/console/print.coffee":23,"../../string/format.js":53}],68:[function(require,module,exports){
+},{"../../core/console/print.coffee":21,"../../string/format.js":48}],63:[function(require,module,exports){
 var locale, mergeObject;
 
 locale = require("../../core/locale/locale.coffee");
@@ -14558,49 +13345,49 @@ module.exports = {
 };
 
 
-},{"../../core/locale/locale.coffee":38,"../../object/merge.coffee":51}],69:[function(require,module,exports){
+},{"../../core/locale/locale.coffee":36,"../../object/merge.coffee":46}],64:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],70:[function(require,module,exports){
+},{}],65:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],71:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 module.exports = {
   accepted: [Boolean],
   value: false
 };
 
 
-},{}],72:[function(require,module,exports){
+},{}],67:[function(require,module,exports){
 module.exports = {
   accepted: [-180, -90, 0, 90, 180],
   value: 0
 };
 
 
-},{}],73:[function(require,module,exports){
+},{}],68:[function(require,module,exports){
 module.exports = {
   accepted: ["circle", "square"],
   value: false
 };
 
 
-},{}],74:[function(require,module,exports){
+},{}],69:[function(require,module,exports){
 module.exports = {
   accepted: [Array, false],
   value: false
 };
 
 
-},{}],75:[function(require,module,exports){
+},{}],70:[function(require,module,exports){
 module.exports = {
   accepted: [false, Array, Number, String],
   html: {
@@ -14620,35 +13407,35 @@ module.exports = {
 };
 
 
-},{}],76:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 module.exports = {
   accepted: [false, "top", "middle", "bottom"],
   value: false
 };
 
 
-},{}],77:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],78:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],79:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 module.exports = {
   accepted: [false, Number],
   value: false
 };
 
 
-},{}],80:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 var attach, print, sizes, text, wrap;
 
 attach = require("../core/methods/attach.coffee");
@@ -14703,7 +13490,7 @@ module.exports = function() {
 };
 
 
-},{"../core/console/print.coffee":23,"../core/methods/attach.coffee":39,"./helpers/parseSize.coffee":59,"./helpers/parseText.coffee":60,"./helpers/wrap.coffee":62,"./methods/align.coffee":63,"./methods/config.coffee":64,"./methods/container.coffee":65,"./methods/dev.coffee":66,"./methods/draw.coffee":67,"./methods/format.coffee":68,"./methods/height.coffee":69,"./methods/padding.coffee":70,"./methods/resize.coffee":71,"./methods/rotate.coffee":72,"./methods/shape.coffee":73,"./methods/size.coffee":74,"./methods/text.coffee":75,"./methods/valign.coffee":76,"./methods/width.coffee":77,"./methods/x.coffee":78,"./methods/y.coffee":79}],81:[function(require,module,exports){
+},{"../core/console/print.coffee":21,"../core/methods/attach.coffee":37,"./helpers/parseSize.coffee":54,"./helpers/parseText.coffee":55,"./helpers/wrap.coffee":57,"./methods/align.coffee":58,"./methods/config.coffee":59,"./methods/container.coffee":60,"./methods/dev.coffee":61,"./methods/draw.coffee":62,"./methods/format.coffee":63,"./methods/height.coffee":64,"./methods/padding.coffee":65,"./methods/resize.coffee":66,"./methods/rotate.coffee":67,"./methods/shape.coffee":68,"./methods/size.coffee":69,"./methods/text.coffee":70,"./methods/valign.coffee":71,"./methods/width.coffee":72,"./methods/x.coffee":73,"./methods/y.coffee":74}],76:[function(require,module,exports){
 module.exports = function(arr, n) {
   var buckets, step;
   buckets = [];
@@ -14712,7 +13499,7 @@ module.exports = function(arr, n) {
 };
 
 
-},{}],82:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 var d3selection;
 
 d3selection = require("./d3selection.coffee");
@@ -14739,7 +13526,7 @@ module.exports = function(parent, child) {
 };
 
 
-},{"./d3selection.coffee":85}],83:[function(require,module,exports){
+},{"./d3selection.coffee":80}],78:[function(require,module,exports){
 module.exports = function(arr, value) {
   var closest, i;
   if (value.constructor === String) {
@@ -14760,7 +13547,7 @@ module.exports = function(arr, value) {
 };
 
 
-},{}],84:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 var copy, objectMerge, objectValidate;
 
 objectMerge = require("../object/merge.coffee");
@@ -14785,7 +13572,7 @@ copy = function(variable) {
 module.exports = copy;
 
 
-},{"../object/merge.coffee":51,"../object/validate.coffee":52}],85:[function(require,module,exports){
+},{"../object/merge.coffee":46,"../object/validate.coffee":47}],80:[function(require,module,exports){
 var ie;
 
 ie = require("../client/ie.js");
@@ -14799,7 +13586,7 @@ module.exports = function(elem) {
 };
 
 
-},{"../client/ie.js":9}],86:[function(require,module,exports){
+},{"../client/ie.js":7}],81:[function(require,module,exports){
 module.exports = function(url, callback) {
   var img;
   img = new Image();
@@ -14818,7 +13605,7 @@ module.exports = function(url, callback) {
 };
 
 
-},{}],87:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 var objectValidate, uniques;
 
 objectValidate = require("../object/validate.coffee");
@@ -14891,4 +13678,4 @@ uniques = function(data, value, fetch, vars, depth) {
 module.exports = uniques;
 
 
-},{"../object/validate.coffee":52}]},{},[49,48]);
+},{"../object/validate.coffee":47}]},{},[44,43]);
