@@ -67,16 +67,6 @@ d3plus.color =
   text:     require "./color/text.coffee"
   validate: require "./color/validate.coffee"
 
-###*
-# Utilities related to manipulating data.
-# @class d3plus.data
-# @for d3plus
-# @static
-###
-d3plus.data =
-  bestRegress: require "./data/bestRegress.coffee"
-  lof:         require "./data/lof.coffee"
-  mad:         require "./data/mad.coffee"
 
 ###*
 # Utilities related to fonts.
@@ -89,13 +79,6 @@ d3plus.font =
   validate: require "./font/validate.coffee"
 
 ###*
-# D3plus Forms
-# @class d3plus.form
-# @for d3plus
-###
-d3plus.form = require "./form/form.js"
-
-###*
 # Utilities related to geometric algorithms.
 # @class d3plus.geom
 # @for d3plus
@@ -105,20 +88,6 @@ d3plus.geom =
   largestRect: require "./geom/largestRect.coffee"
   offset:      require "./geom/offset.coffee"
   path2poly:   require "./geom/path2poly.coffee"
-
-###*
-# Utilities related to network graphs.
-# @class d3plus.network
-# @for d3plus
-# @static
-###
-d3plus.network =
-  cluster:      require "./network/cluster.coffee"
-  distance:     require "./network/distance.coffee"
-  normalize:    require "./network/normalize.coffee"
-  shortestPath: require "./network/shortestPath.coffee"
-  smallestGap:  require "./network/smallestGap.coffee"
-  subgraph:     require "./network/subgraph.coffee"
 
 ###*
 # Utilities that process numbers.
@@ -159,16 +128,6 @@ d3plus.string =
 d3plus.textwrap = require "./textwrap/textwrap.coffee"
 
 ###*
-# D3plus Tooltips
-# @class d3plus.tooltip
-# @for d3plus
-###
-d3plus.tooltip =
-  create: require "./tooltip/create.js"
-  move:   require "./tooltip/move.coffee"
-  remove: require "./tooltip/remove.coffee"
-
-###*
 # D3plus features Utilities that can be used to help with some common javascript processes.
 # @class d3plus.util
 # @for d3plus
@@ -183,12 +142,6 @@ d3plus.util =
   dataurl:     require "./util/dataURL.coffee"
   uniques:     require "./util/uniques.coffee"
 
-###*
-# D3plus Visualizations
-# @class d3plus.viz
-# @for d3plus
-###
-d3plus.viz = require "./viz/viz.coffee"
 
 # Flash a console message if they are loading the old, unneeded stylesheet!
 stylesheet = require "./client/css.coffee"
